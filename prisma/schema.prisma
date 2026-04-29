@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 BigInt    @id
+  username           String?
+  timezone           String    @default("UTC+3")
+  morning_brief_time String    @default("09:00")
+  quiet_hours_from   String?
+  quiet_hours_to     String?
+  last_brief_sent_at DateTime?
+  tasks              Task[]
+  createdAt          DateTime  @default(now())
+}
+
+model Task {
+  id     String @id @default(cuid())
+  userId BigInt
+  user   User   @relation(fields: [userId], references: [id])
+
+  title        String      @db.VarChar(200)
+  category     Category
+  duration_tag DurationTag
+  status       Status      @default(ACTIVE)
+
+  elo_score Int @default(1000)
+
+  due_date DateTime?
+  due_time DateTime?
+
+  delegated_to         String?
+  delegated_at         DateTime?
+  remind_delegation_at DateTime?
+
+  last_activity_at DateTime  @default(now())
+  completed_at     DateTime?
+  frozen_at        DateTime?
+  archived_at      DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+enum Category {
+  CAREER
+  PERSONAL
+}
+
+enum DurationTag {
+  MIN_5
+  MIN_30
+  HOUR_1
+  HOUR_2
+  PROJECT
+}
+
+enum Status {
+  ACTIVE
+  FROZEN
+  ARCHIVED
+  DONE
+  DELETED
+}
