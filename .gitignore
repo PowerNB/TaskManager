@@ -1,1 +1,9 @@
 docs
+/generated/prisma
+*.env
+logs/*
+node_modules/
+prisma/migrations
+*.log
+.vscode
+.claude
