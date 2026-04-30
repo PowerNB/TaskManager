@@ -1,9 +1,9 @@
-import "dotenv/config";
 import pino from "pino";
+import { config } from "#root/config.js";
 
 let transport: pino.TransportSingleOptions | undefined;
 
-if (process.env.NODE_ENV !== "production") {
+if (config.NODE_ENV !== "production") {
     transport = {
         target: "pino-pretty",
         options: {
@@ -15,7 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const logger = pino({
-    level: process.env.LOG_LEVEL ?? "info",
+    level: config.LOG_LEVEL,
     transport,
 });
 

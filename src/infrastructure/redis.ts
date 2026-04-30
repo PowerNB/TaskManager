@@ -1,17 +1,17 @@
-import "dotenv/config";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
+import { config } from "#root/config.js";
 
-export const redis = new Redis(process.env.REDIS_URL!, {
+export const redis = new Redis(config.REDIS_URL, {
     lazyConnect: true,
 });
 
-export const bullRedis = new Redis(process.env.REDIS_URL!, {
+export const bullRedis = new Redis(config.REDIS_URL, {
     maxRetriesPerRequest: null,
     lazyConnect: true,
 });
 
-redis.on("error", (err) => console.error("[Redis] error:", err));
+redis.on("error", (err: Error) => console.error("[Redis] error:", err));
 redis.on("ready", () => console.log("[Redis] ready"));
 
-bullRedis.on("error", (err) => console.error("[BullRedis] error:", err));
+bullRedis.on("error", (err: Error) => console.error("[BullRedis] error:", err));
 bullRedis.on("ready", () => console.log("[BullRedis] ready"));
