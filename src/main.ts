@@ -1,6 +1,7 @@
 import { config } from "#root/config.js";
 import { run, RunnerHandle } from "@grammyjs/runner";
 import { bot } from "#root/bot/index.js";
+import { startJobs } from "#root/jobs/index.js";
 import { logger } from "#root/logger.js";
 
 function onShutdown(cleanUp: () => Promise<void>) {
@@ -24,6 +25,15 @@ try {
         await runner?.stop();
         await bot.stop();
     });
+
+    await bot.api.setMyCommands([
+        { command: "start", description: "Запустить бота" },
+        { command: "add", description: "Добавить задачу" },
+        { command: "inbox", description: "Мои задачи" },
+        { command: "settings", description: "Настройки" },
+    ]);
+
+    await startJobs();
 
     if (config.NODE_ENV === "production") {
         runner = run(bot);

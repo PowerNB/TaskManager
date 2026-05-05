@@ -54,6 +54,8 @@ export type TaskMinAggregateOutputType = {
   frozen_at: Date | null
   archived_at: Date | null
   createdAt: Date | null
+  attachment_file_id: string | null
+  attachment_type: string | null
 }
 
 export type TaskMaxAggregateOutputType = {
@@ -74,6 +76,8 @@ export type TaskMaxAggregateOutputType = {
   frozen_at: Date | null
   archived_at: Date | null
   createdAt: Date | null
+  attachment_file_id: string | null
+  attachment_type: string | null
 }
 
 export type TaskCountAggregateOutputType = {
@@ -94,6 +98,8 @@ export type TaskCountAggregateOutputType = {
   frozen_at: number
   archived_at: number
   createdAt: number
+  attachment_file_id: number
+  attachment_type: number
   _all: number
 }
 
@@ -126,6 +132,8 @@ export type TaskMinAggregateInputType = {
   frozen_at?: true
   archived_at?: true
   createdAt?: true
+  attachment_file_id?: true
+  attachment_type?: true
 }
 
 export type TaskMaxAggregateInputType = {
@@ -146,6 +154,8 @@ export type TaskMaxAggregateInputType = {
   frozen_at?: true
   archived_at?: true
   createdAt?: true
+  attachment_file_id?: true
+  attachment_type?: true
 }
 
 export type TaskCountAggregateInputType = {
@@ -166,6 +176,8 @@ export type TaskCountAggregateInputType = {
   frozen_at?: true
   archived_at?: true
   createdAt?: true
+  attachment_file_id?: true
+  attachment_type?: true
   _all?: true
 }
 
@@ -273,6 +285,8 @@ export type TaskGroupByOutputType = {
   frozen_at: Date | null
   archived_at: Date | null
   createdAt: Date
+  attachment_file_id: string | null
+  attachment_type: string | null
   _count: TaskCountAggregateOutputType | null
   _avg: TaskAvgAggregateOutputType | null
   _sum: TaskSumAggregateOutputType | null
@@ -316,6 +330,8 @@ export type TaskWhereInput = {
   frozen_at?: Prisma.DateTimeNullableFilter<"Task"> | Date | string | null
   archived_at?: Prisma.DateTimeNullableFilter<"Task"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Task"> | Date | string
+  attachment_file_id?: Prisma.StringNullableFilter<"Task"> | string | null
+  attachment_type?: Prisma.StringNullableFilter<"Task"> | string | null
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }
 
@@ -337,6 +353,8 @@ export type TaskOrderByWithRelationInput = {
   frozen_at?: Prisma.SortOrderInput | Prisma.SortOrder
   archived_at?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  attachment_file_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  attachment_type?: Prisma.SortOrderInput | Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
 }
 
@@ -361,6 +379,8 @@ export type TaskWhereUniqueInput = Prisma.AtLeast<{
   frozen_at?: Prisma.DateTimeNullableFilter<"Task"> | Date | string | null
   archived_at?: Prisma.DateTimeNullableFilter<"Task"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Task"> | Date | string
+  attachment_file_id?: Prisma.StringNullableFilter<"Task"> | string | null
+  attachment_type?: Prisma.StringNullableFilter<"Task"> | string | null
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }, "id">
 
@@ -382,6 +402,8 @@ export type TaskOrderByWithAggregationInput = {
   frozen_at?: Prisma.SortOrderInput | Prisma.SortOrder
   archived_at?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  attachment_file_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  attachment_type?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.TaskCountOrderByAggregateInput
   _avg?: Prisma.TaskAvgOrderByAggregateInput
   _max?: Prisma.TaskMaxOrderByAggregateInput
@@ -410,6 +432,8 @@ export type TaskScalarWhereWithAggregatesInput = {
   frozen_at?: Prisma.DateTimeNullableWithAggregatesFilter<"Task"> | Date | string | null
   archived_at?: Prisma.DateTimeNullableWithAggregatesFilter<"Task"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Task"> | Date | string
+  attachment_file_id?: Prisma.StringNullableWithAggregatesFilter<"Task"> | string | null
+  attachment_type?: Prisma.StringNullableWithAggregatesFilter<"Task"> | string | null
 }
 
 export type TaskCreateInput = {
@@ -424,13 +448,13 @@ export type TaskCreateInput = {
   delegated_to?: string | null
   delegated_at?: Date | string | null
   remind_delegation_at?: Date | string | null
-  attachment_file_id?: string | null
-  attachment_type?: string | null
   last_activity_at?: Date | string
   completed_at?: Date | string | null
   frozen_at?: Date | string | null
   archived_at?: Date | string | null
   createdAt?: Date | string
+  attachment_file_id?: string | null
+  attachment_type?: string | null
   user: Prisma.UserCreateNestedOneWithoutTasksInput
 }
 
@@ -452,6 +476,8 @@ export type TaskUncheckedCreateInput = {
   frozen_at?: Date | string | null
   archived_at?: Date | string | null
   createdAt?: Date | string
+  attachment_file_id?: string | null
+  attachment_type?: string | null
 }
 
 export type TaskUpdateInput = {
@@ -466,13 +492,13 @@ export type TaskUpdateInput = {
   delegated_to?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   delegated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   remind_delegation_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   last_activity_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   frozen_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   archived_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   user?: Prisma.UserUpdateOneRequiredWithoutTasksNestedInput
 }
 
@@ -494,6 +520,8 @@ export type TaskUncheckedUpdateInput = {
   frozen_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   archived_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type TaskCreateManyInput = {
@@ -514,6 +542,8 @@ export type TaskCreateManyInput = {
   frozen_at?: Date | string | null
   archived_at?: Date | string | null
   createdAt?: Date | string
+  attachment_file_id?: string | null
+  attachment_type?: string | null
 }
 
 export type TaskUpdateManyMutationInput = {
@@ -533,6 +563,8 @@ export type TaskUpdateManyMutationInput = {
   frozen_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   archived_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type TaskUncheckedUpdateManyInput = {
@@ -553,6 +585,8 @@ export type TaskUncheckedUpdateManyInput = {
   frozen_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   archived_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type TaskListRelationFilter = {
@@ -583,6 +617,8 @@ export type TaskCountOrderByAggregateInput = {
   frozen_at?: Prisma.SortOrder
   archived_at?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  attachment_file_id?: Prisma.SortOrder
+  attachment_type?: Prisma.SortOrder
 }
 
 export type TaskAvgOrderByAggregateInput = {
@@ -608,6 +644,8 @@ export type TaskMaxOrderByAggregateInput = {
   frozen_at?: Prisma.SortOrder
   archived_at?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  attachment_file_id?: Prisma.SortOrder
+  attachment_type?: Prisma.SortOrder
 }
 
 export type TaskMinOrderByAggregateInput = {
@@ -628,6 +666,8 @@ export type TaskMinOrderByAggregateInput = {
   frozen_at?: Prisma.SortOrder
   archived_at?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  attachment_file_id?: Prisma.SortOrder
+  attachment_type?: Prisma.SortOrder
 }
 
 export type TaskSumOrderByAggregateInput = {
@@ -714,6 +754,8 @@ export type TaskCreateWithoutUserInput = {
   frozen_at?: Date | string | null
   archived_at?: Date | string | null
   createdAt?: Date | string
+  attachment_file_id?: string | null
+  attachment_type?: string | null
 }
 
 export type TaskUncheckedCreateWithoutUserInput = {
@@ -733,6 +775,8 @@ export type TaskUncheckedCreateWithoutUserInput = {
   frozen_at?: Date | string | null
   archived_at?: Date | string | null
   createdAt?: Date | string
+  attachment_file_id?: string | null
+  attachment_type?: string | null
 }
 
 export type TaskCreateOrConnectWithoutUserInput = {
@@ -782,6 +826,8 @@ export type TaskScalarWhereInput = {
   frozen_at?: Prisma.DateTimeNullableFilter<"Task"> | Date | string | null
   archived_at?: Prisma.DateTimeNullableFilter<"Task"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Task"> | Date | string
+  attachment_file_id?: Prisma.StringNullableFilter<"Task"> | string | null
+  attachment_type?: Prisma.StringNullableFilter<"Task"> | string | null
 }
 
 export type TaskCreateManyUserInput = {
@@ -801,6 +847,8 @@ export type TaskCreateManyUserInput = {
   frozen_at?: Date | string | null
   archived_at?: Date | string | null
   createdAt?: Date | string
+  attachment_file_id?: string | null
+  attachment_type?: string | null
 }
 
 export type TaskUpdateWithoutUserInput = {
@@ -820,6 +868,8 @@ export type TaskUpdateWithoutUserInput = {
   frozen_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   archived_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type TaskUncheckedUpdateWithoutUserInput = {
@@ -839,6 +889,8 @@ export type TaskUncheckedUpdateWithoutUserInput = {
   frozen_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   archived_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type TaskUncheckedUpdateManyWithoutUserInput = {
@@ -858,6 +910,8 @@ export type TaskUncheckedUpdateManyWithoutUserInput = {
   frozen_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   archived_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attachment_file_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachment_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -880,6 +934,8 @@ export type TaskSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   frozen_at?: boolean
   archived_at?: boolean
   createdAt?: boolean
+  attachment_file_id?: boolean
+  attachment_type?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["task"]>
 
@@ -901,6 +957,8 @@ export type TaskSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   frozen_at?: boolean
   archived_at?: boolean
   createdAt?: boolean
+  attachment_file_id?: boolean
+  attachment_type?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["task"]>
 
@@ -922,6 +980,8 @@ export type TaskSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   frozen_at?: boolean
   archived_at?: boolean
   createdAt?: boolean
+  attachment_file_id?: boolean
+  attachment_type?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["task"]>
 
@@ -943,9 +1003,11 @@ export type TaskSelectScalar = {
   frozen_at?: boolean
   archived_at?: boolean
   createdAt?: boolean
+  attachment_file_id?: boolean
+  attachment_type?: boolean
 }
 
-export type TaskOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "title" | "category" | "duration_tag" | "status" | "elo_score" | "due_date" | "due_time" | "delegated_to" | "delegated_at" | "remind_delegation_at" | "last_activity_at" | "completed_at" | "frozen_at" | "archived_at" | "createdAt", ExtArgs["result"]["task"]>
+export type TaskOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "title" | "category" | "duration_tag" | "status" | "elo_score" | "due_date" | "due_time" | "delegated_to" | "delegated_at" | "remind_delegation_at" | "last_activity_at" | "completed_at" | "frozen_at" | "archived_at" | "createdAt" | "attachment_file_id" | "attachment_type", ExtArgs["result"]["task"]>
 export type TaskInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -974,13 +1036,13 @@ export type $TaskPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     delegated_to: string | null
     delegated_at: Date | null
     remind_delegation_at: Date | null
-    attachment_file_id: string | null
-    attachment_type: string | null
     last_activity_at: Date
     completed_at: Date | null
     frozen_at: Date | null
     archived_at: Date | null
     createdAt: Date
+    attachment_file_id: string | null
+    attachment_type: string | null
   }, ExtArgs["result"]["task"]>
   composites: {}
 }
@@ -1422,6 +1484,8 @@ export interface TaskFieldRefs {
   readonly frozen_at: Prisma.FieldRef<"Task", 'DateTime'>
   readonly archived_at: Prisma.FieldRef<"Task", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Task", 'DateTime'>
+  readonly attachment_file_id: Prisma.FieldRef<"Task", 'String'>
+  readonly attachment_type: Prisma.FieldRef<"Task", 'String'>
 }
     
 

@@ -1,6 +1,6 @@
 import { prisma } from "#root/infrastructure/prisma.js";
 import { logger } from "#root/logger.js";
-import { UserModel } from "#root/infrastructure/generated/prisma/models/User.js";
+import { UserModel, UserUpdateInput } from "#root/infrastructure/generated/prisma/models/User.js";
 
 export const userRepository = {
     findById: async (id: bigint): Promise<UserModel | null> => {
@@ -15,5 +15,15 @@ export const userRepository = {
             create: { id, username },
             update: { username },
         });
+    },
+
+    update: async (id: bigint, data: UserUpdateInput): Promise<UserModel> => {
+        logger.debug({ id, data }, "userRepository.update");
+        return prisma.user.update({ where: { id }, data });
+    },
+
+    findAll: async (): Promise<UserModel[]> => {
+        logger.debug("userRepository.findAll");
+        return prisma.user.findMany();
     },
 };

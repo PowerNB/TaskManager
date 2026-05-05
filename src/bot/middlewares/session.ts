@@ -6,6 +6,6 @@ import { SessionData } from "#root/types/context.js";
 const storage = new RedisAdapter<SessionData>({ instance: redis });
 
 export const sessionMiddleware = session({
-    initial: () => ({ scene: null, actions: [] }),
+    initial: () => ({ scene: null, sceneHistory: [] }),
     storage,
 });

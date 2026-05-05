@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { bullRedis } from "./redis";
+import { bullRedis } from "./redis.js";
 
 export const morningBriefQueue = new Queue("morning-brief", {
     connection: bullRedis,
