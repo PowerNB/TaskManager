@@ -5,13 +5,12 @@ export const CAPTURE_TEXTS = {
     CATEGORY_PROMPT: "К чему относится?",
     DURATION_PROMPT: "Сколько времени займёт?",
     OPTIONS_PROMPT: "Добавить что-нибудь ещё?",
-    DATE_PROMPT: "На когда?",
+    DATE_PROMPT: "На какой день?",
     DATE_INVALID: "Не понял формат. Попробуй так: 15.05 или 15.05.2026",
     DATE_IN_PAST: "Эта дата уже прошла. Выбери другую.",
     TIME_PROMPT: "В какое время?",
     TIME_INVALID: "Не понял формат. Попробуй так: 15:00",
     TIME_IN_PAST: "Это время уже прошло. Выбери другой день или другое время.",
-    TIME_DATE_PROMPT: "На какой день?",
     DELEGATE_PROMPT: "Кому делегируешь?",
     QUIET_HOURS_WARNING: (time: string) =>
         `⚠️ Время задачи (${time}) попадает в тихие часы.\nНапоминание за час не придёт. Продолжить?`,
@@ -40,9 +39,3 @@ export const DATE_PRESETS = {
     CUSTOM: { label: "Указать дату", value: "custom" },
 } as const;
 
-export const TIME_DATE_PRESETS = {
-    TODAY: { label: "Сегодня", value: "today" },
-    TOMORROW: { label: "Завтра", value: "tomorrow" },
-    IN_3_DAYS: { label: "Через 3 дня", value: "in_3_days" },
-    CUSTOM: { label: "Указать дату", value: "custom" },
-} as const;

@@ -6,7 +6,7 @@ import { userRepository } from "#root/repositories/user.repository.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { pushScene, popScene, clearHistory } from "#root/utils/scene.js";
 import { sendMainMenu } from "#root/bot/handlers/menu.js";
-import { sendTaskMessage } from "#root/bot/handlers/task-message.js";
+import { sendTaskMessage, buildTaskTags } from "#root/bot/handlers/task-message.js";
 import { Category, DurationTag } from "#root/infrastructure/generated/prisma/enums.js";
 import {
     CAPTURE_TEXTS,
@@ -49,16 +49,25 @@ const isValidTime = (value: string): boolean =>
 const backButton = (): InlineKeyboard => new InlineKeyboard().text("◀ Назад", "capture:back");
 
 const buildOptionsKeyboard = (draft: CaptureDraft): InlineKeyboard => {
-    const keyboard = new InlineKeyboard();
+    const dateLabel = draft.due_date
+        ? `📅 ${draft.due_date.slice(8)}.${draft.due_date.slice(5, 7)}`
+        : "📅 Дату";
+    const timeLabel = draft.due_time ? `⏰ ${draft.due_time}` : "⏰ Время";
+    const delegateLabel = draft.delegated_to ? `👤 ${draft.delegated_to}` : "👤 Делегировать";
+    const categoryLabel = draft.category === "CAREER" ? "💼 Карьера" : draft.category === "PERSONAL" ? "🎯 Личное" : "📂 Категория";
 
-    if (!draft.due_date) keyboard.text("📅 Дату", "capture:option:date");
-    if (!draft.due_time) keyboard.text("⏰ Время", "capture:option:time");
-    keyboard.row();
-    if (!draft.delegated_to) keyboard.text("👤 Делегировать", "capture:option:delegate");
-    keyboard.text("✅ Готово", "capture:option:done");
-    keyboard.row().text("◀ Назад", "capture:back");
-
-    return keyboard;
+    return new InlineKeyboard()
+        .text(dateLabel, "capture:option:date")
+        .text(timeLabel, "capture:option:time")
+        .row()
+        .text(categoryLabel, "capture:option:category")
+        .text("✏️ Название", "capture:option:title")
+        .row()
+        .text(delegateLabel, "capture:option:delegate")
+        .row()
+        .text("✅ Готово", "capture:option:done")
+        .row()
+        .text("◀ Назад", "capture:back");
 };
 
 const buildDateKeyboard = (prefix: string): InlineKeyboard =>
@@ -126,8 +135,8 @@ const sendConfirmation = async (ctx: BotContext) => {
         .text(CAPTURE_TEXTS.OPEN_INBOX, "capture:inbox");
 
     await ctx.reply(
-        `${CAPTURE_TEXTS.CONFIRMED}\n\n${draft.title}\n${tags.join(" ")}`,
-        { reply_markup: keyboard },
+        `${CAPTURE_TEXTS.CONFIRMED}\n\n<b>${draft.title}</b>\n<i>${tags.join(" ")}</i>`,
+        { reply_markup: keyboard, parse_mode: "HTML" },
     );
 
     ctx.session.scene = null;
@@ -138,24 +147,36 @@ const sendConfirmation = async (ctx: BotContext) => {
 const buildDueTime = (date: string | undefined, time: string | undefined): Date | null => {
     if (!time) return null;
     const dateStr = date ?? new Date().toISOString().split("T")[0];
-    return new Date(`${dateStr}T${time}:00`);
+    return new Date(`${dateStr}T${time}:00Z`);
 };
 
 const saveTask = async (ctx: BotContext) => {
     const draft = ctx.session.capture!;
     const userId = BigInt(ctx.from!.id);
 
-    await captureService.createTask({
-        userId,
-        title: draft.title!,
-        category: draft.category as Category,
-        duration_tag: draft.duration_tag as DurationTag,
-        due_date: draft.due_date ? new Date(draft.due_date) : null,
-        due_time: buildDueTime(draft.due_date, draft.due_time),
-        delegated_to: draft.delegated_to ?? null,
-        attachment_file_id: draft.attachment_file_id ?? null,
-        attachment_type: draft.attachment_type ?? null,
-    });
+    if (draft.taskId) {
+        await taskRepository.update(draft.taskId, {
+            title: draft.title,
+            due_date: draft.due_date ? new Date(draft.due_date) : null,
+            due_time: buildDueTime(draft.due_date, draft.due_time),
+            delegated_to: draft.delegated_to ?? null,
+            attachment_file_id: draft.attachment_file_id ?? null,
+            attachment_type: draft.attachment_type ?? null,
+            last_activity_at: new Date(),
+        });
+    } else {
+        await captureService.createTask({
+            userId,
+            title: draft.title!,
+            category: draft.category as Category,
+            duration_tag: draft.duration_tag as DurationTag,
+            due_date: draft.due_date ? new Date(draft.due_date) : null,
+            due_time: buildDueTime(draft.due_date, draft.due_time),
+            delegated_to: draft.delegated_to ?? null,
+            attachment_file_id: draft.attachment_file_id ?? null,
+            attachment_type: draft.attachment_type ?? null,
+        });
+    }
 
     await sendConfirmation(ctx);
 };
@@ -184,7 +205,11 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
         await ctx.reply(`📥 Инбокс — ${tasks.length} задач`);
 
         for (const task of tasks) {
-            const keyboard = new InlineKeyboard().text("✅ Выполнено", `inbox:done:${task.id}`);
+            const keyboard = new InlineKeyboard()
+                .text("✅ Выполнено", `inbox:done:${task.id}`)
+                .text("✏️ Изменить", `inbox:edit:${task.id}`)
+                .row()
+                .text("🗑 Удалить", `inbox:delete:${task.id}`);
             await sendTaskMessage(ctx.api, ctx.from!.id, task, keyboard);
         }
 
@@ -225,7 +250,11 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
         await ctx.reply(`📥 Инбокс — ${tasks.length} задач`);
 
         for (const task of tasks) {
-            const keyboard = new InlineKeyboard().text("✅ Выполнено", `inbox:done:${task.id}`);
+            const keyboard = new InlineKeyboard()
+                .text("✅ Выполнено", `inbox:done:${task.id}`)
+                .text("✏️ Изменить", `inbox:edit:${task.id}`)
+                .row()
+                .text("🗑 Удалить", `inbox:delete:${task.id}`);
             await sendTaskMessage(ctx.api, ctx.from!.id, task, keyboard);
         }
 
@@ -237,9 +266,52 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^inbox:done:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
-        const originalText = ctx.callbackQuery.message?.text ?? "";
-        await ctx.editMessageText(`✅ ${originalText}`, { reply_markup: new InlineKeyboard() });
+        const task = await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
+        const msg = ctx.callbackQuery.message;
+        const emptyKeyboard = new InlineKeyboard();
+        const doneText = `✅ <b>${task.title}</b>\n<i>${buildTaskTags(task)}</i>`;
+        if (msg && ("photo" in msg || "video" in msg || "document" in msg || "audio" in msg || "voice" in msg)) {
+            await ctx.editMessageCaption({ caption: doneText, reply_markup: emptyKeyboard, parse_mode: "HTML" });
+        } else {
+            await ctx.editMessageText(doneText, { reply_markup: emptyKeyboard, parse_mode: "HTML" });
+        }
+    });
+
+    bot.callbackQuery(/^inbox:edit:(.+)$/, async (ctx) => {
+        await ctx.answerCallbackQuery();
+        const taskId = ctx.match[1];
+        const task = await taskRepository.findById(taskId);
+        if (!task) return;
+
+        const due_date = task.due_date ? task.due_date.toISOString().split("T")[0] : undefined;
+        const due_time = task.due_time
+            ? `${String(task.due_time.getUTCHours()).padStart(2, "0")}:${String(task.due_time.getUTCMinutes()).padStart(2, "0")}`
+            : undefined;
+
+        ctx.session.capture = {
+            taskId,
+            title: task.title,
+            due_date,
+            due_time,
+            delegated_to: task.delegated_to ?? undefined,
+            attachment_file_id: task.attachment_file_id ?? undefined,
+            attachment_type: task.attachment_type ?? undefined,
+        };
+        clearHistory(ctx);
+        await sendOptionsStep(ctx);
+    });
+
+    bot.callbackQuery(/^inbox:delete:(.+)$/, async (ctx) => {
+        await ctx.answerCallbackQuery();
+        const taskId = ctx.match[1];
+        await taskRepository.update(taskId, { status: "DELETED" });
+        const msg = ctx.callbackQuery.message;
+        const emptyKeyboard = new InlineKeyboard();
+        if (msg && "photo" in msg || msg && "video" in msg || msg && "document" in msg || msg && "audio" in msg || msg && "voice" in msg) {
+            await ctx.editMessageCaption({ caption: "🗑 Задача удалена", reply_markup: emptyKeyboard });
+        } else {
+            await ctx.editMessageText("🗑 Задача удалена", { reply_markup: emptyKeyboard });
+        }
     });
 
     // Back navigation
@@ -314,30 +386,39 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
         await saveTask(ctx);
     });
 
+    bot.callbackQuery("capture:option:category", async (ctx) => {
+        await ctx.answerCallbackQuery();
+        pushScene(ctx, "capture:awaiting_category");
+        const keyboard = new InlineKeyboard();
+        Object.values(CATEGORY_OPTIONS).forEach(({ label, value }) =>
+            keyboard.text(label, `capture:option:category:${value}`),
+        );
+        keyboard.row().text("◀ Назад", "capture:back");
+        await ctx.reply(CAPTURE_TEXTS.CATEGORY_PROMPT, { reply_markup: keyboard });
+    });
+
+    bot.callbackQuery(/^capture:option:category:(.+)$/, async (ctx) => {
+        await ctx.answerCallbackQuery();
+        const category = ctx.match[1] as Category;
+        ctx.session.capture = { ...ctx.session.capture, category };
+        await sendOptionsStep(ctx);
+    });
+
+    bot.callbackQuery("capture:option:title", async (ctx) => {
+        await ctx.answerCallbackQuery();
+        pushScene(ctx, "capture:edit_title");
+        const current = ctx.session.capture?.title ?? "";
+        await ctx.reply(
+            `Текущее: "${current}"\n\nВведи новое название (или отправь с аттачментом).`,
+            { reply_markup: backButton() },
+        );
+    });
+
     bot.callbackQuery(/^capture:date:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const value = ctx.match[1];
 
         if (value === "custom") {
-            await ctx.reply(CAPTURE_TEXTS.DATE_PROMPT, { reply_markup: backButton() });
-            return;
-        }
-
-        const date = resolveDatePreset(value);
-        ctx.session.capture = {
-            ...ctx.session.capture,
-            due_date: date.toISOString().split("T")[0],
-        };
-
-        await sendOptionsStep(ctx);
-    });
-
-    bot.callbackQuery(/^capture:time_date:(.+)$/, async (ctx) => {
-        await ctx.answerCallbackQuery();
-        const value = ctx.match[1];
-
-        if (value === "custom") {
-            pushScene(ctx, "capture:awaiting_time_date");
             await ctx.reply(CAPTURE_TEXTS.DATE_PROMPT, { reply_markup: backButton() });
             return;
         }
@@ -384,6 +465,15 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
             return;
         }
 
+        if (scene === "capture:edit_title") {
+            const title = ctx.message.text.trim();
+            if (!title) { await ctx.reply(CAPTURE_TEXTS.TITLE_EMPTY); return; }
+            if (title.length > TITLE_MAX_LENGTH) { await ctx.reply(CAPTURE_TEXTS.TITLE_TOO_LONG); return; }
+            ctx.session.capture = { ...ctx.session.capture, title, attachment_file_id: undefined, attachment_type: undefined };
+            await sendOptionsStep(ctx);
+            return;
+        }
+
         if (scene === "capture:awaiting_category" || scene === "capture:awaiting_duration") {
             return;
         }
@@ -419,33 +509,11 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
                 return;
             }
 
-            ctx.session.capture = { ...ctx.session.capture, due_time: value };
-            pushScene(ctx, "capture:awaiting_time_date");
-            await ctx.reply(CAPTURE_TEXTS.TIME_DATE_PROMPT, {
-                reply_markup: buildDateKeyboard("capture:time_date"),
-            });
-            return;
-        }
-
-        if (scene === "capture:awaiting_time_date") {
-            const value = ctx.message.text.trim();
-            const date = parseDate(value);
-
-            if (!date) {
-                await ctx.reply(CAPTURE_TEXTS.DATE_INVALID);
-                return;
-            }
-
-            if (date < new Date()) {
-                await ctx.reply(CAPTURE_TEXTS.DATE_IN_PAST);
-                return;
-            }
-
-            const dueTime = ctx.session.capture?.due_time;
+            const dueTime = value;
             const userId = BigInt(ctx.from.id);
             const user = await userRepository.findById(userId);
 
-            if (user?.quiet_hours_from && user.quiet_hours_to && dueTime) {
+            if (user?.quiet_hours_from && user.quiet_hours_to) {
                 const timeMinusHour = dueTime.split(":").map(Number);
                 timeMinusHour[0] = (timeMinusHour[0] - 1 + 24) % 24;
                 const reminderTime = `${String(timeMinusHour[0]).padStart(2, "0")}:${String(timeMinusHour[1]).padStart(2, "0")}`;
@@ -454,22 +522,16 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
                     isTimeInQuietHours(dueTime, user.quiet_hours_from, user.quiet_hours_to) ||
                     isTimeInQuietHours(reminderTime, user.quiet_hours_from, user.quiet_hours_to)
                 ) {
+                    ctx.session.capture = { ...ctx.session.capture, due_time: dueTime };
                     const keyboard = new InlineKeyboard()
                         .text("Да, сохранить", "capture:quiet_warning:save")
                         .text("Изменить время", "capture:quiet_warning:change");
-
-                    await ctx.reply(CAPTURE_TEXTS.QUIET_HOURS_WARNING(dueTime), {
-                        reply_markup: keyboard,
-                    });
+                    await ctx.reply(CAPTURE_TEXTS.QUIET_HOURS_WARNING(dueTime), { reply_markup: keyboard });
                     return;
                 }
             }
 
-            ctx.session.capture = {
-                ...ctx.session.capture,
-                due_date: date.toISOString().split("T")[0],
-            };
-
+            ctx.session.capture = { ...ctx.session.capture, due_time: dueTime };
             await sendOptionsStep(ctx);
             return;
         }
@@ -485,7 +547,16 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     });
 
     const applyMediaTitle = async (ctx: BotContext, fileId: string, type: string, caption: string | undefined, next: () => Promise<void>) => {
-        if (ctx.session.scene !== "capture:awaiting_title") return next();
+        const scene = ctx.session.scene;
+        if (scene === "capture:edit_title") {
+            const title = (caption ?? "").trim();
+            if (!title) { await ctx.reply(CAPTURE_TEXTS.TITLE_EMPTY); return; }
+            if (title.length > TITLE_MAX_LENGTH) { await ctx.reply(CAPTURE_TEXTS.TITLE_TOO_LONG); return; }
+            ctx.session.capture = { ...ctx.session.capture, title, attachment_file_id: fileId, attachment_type: type };
+            await sendOptionsStep(ctx);
+            return;
+        }
+        if (scene !== "capture:awaiting_title") return next();
         const title = (caption ?? "").trim();
         if (!title) { await ctx.reply(CAPTURE_TEXTS.TITLE_EMPTY); return; }
         if (title.length > TITLE_MAX_LENGTH) { await ctx.reply(CAPTURE_TEXTS.TITLE_TOO_LONG); return; }

@@ -17,7 +17,7 @@ const isValidTimezone = (value: string): boolean =>
 const isValidTime = (value: string): boolean =>
     /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
 
-const sendSettingsMenu = async (ctx: BotContext) => {
+export const sendSettingsMenu = async (ctx: BotContext) => {
     const userId = BigInt(ctx.from!.id);
     const user = await userRepository.findById(userId);
     if (!user) return;
@@ -27,21 +27,24 @@ const sendSettingsMenu = async (ctx: BotContext) => {
             ? `${user.quiet_hours_from} — ${user.quiet_hours_to}`
             : "не настроены";
 
-    const keyboard = new InlineKeyboard()
-        .text("Изменить", "settings:timezone")
-        .row()
-        .text("Изменить", "settings:brief_time")
-        .row()
-        .text("Изменить", "settings:quiet_hours")
-        .row()
-        .text("🏠 Главное меню", "menu:home");
-
     ctx.session.scene = null;
     ctx.session.onboarding = undefined;
 
+    await ctx.reply(`⚙️ Настройки`, { reply_markup: new InlineKeyboard().text("🏠 Главное меню", "menu:home") });
+
     await ctx.reply(
-        `⚙️ Настройки\n\n🕐 Часовой пояс: ${user.timezone}\n🌅 Утренний бриф: ${user.morning_brief_time}\n🌙 Тихие часы: ${quietHours}`,
-        { reply_markup: keyboard },
+        `🕐 Часовой пояс: ${user.timezone}`,
+        { reply_markup: new InlineKeyboard().text("Изменить", "settings:timezone") },
+    );
+
+    await ctx.reply(
+        `🌅 Утренний бриф: ${user.morning_brief_time}`,
+        { reply_markup: new InlineKeyboard().text("Изменить", "settings:brief_time") },
+    );
+
+    await ctx.reply(
+        `🌙 Тихие часы: ${quietHours}`,
+        { reply_markup: new InlineKeyboard().text("Изменить", "settings:quiet_hours") },
     );
 };
 

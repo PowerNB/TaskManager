@@ -20,7 +20,11 @@ export const buildTaskTags = (task: TaskModel): string => {
     tags.push(DURATION_LABELS[task.duration_tag] ?? task.duration_tag);
     if (task.due_date) {
         const d = task.due_date;
-        tags.push(`📅 ${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}`);
+        tags.push(`📅 ${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+    }
+    if (task.due_time) {
+        const t = task.due_time;
+        tags.push(`⏰ ${String(t.getUTCHours()).padStart(2, "0")}:${String(t.getUTCMinutes()).padStart(2, "0")}`);
     }
     if (task.delegated_to) tags.push(`👤 ${task.delegated_to}`);
     return tags.join(" ");
@@ -32,8 +36,8 @@ export const sendTaskMessage = async (
     task: TaskModel,
     keyboard?: InlineKeyboard,
 ): Promise<void> => {
-    const caption = `${task.title}\n${buildTaskTags(task)}`;
-    const options = keyboard ? { reply_markup: keyboard } : {};
+    const caption = `<b>${task.title}</b>\n<i>${buildTaskTags(task)}</i>`;
+    const options = keyboard ? { reply_markup: keyboard, parse_mode: "HTML" as const } : { parse_mode: "HTML" as const };
 
     if (task.attachment_file_id && task.attachment_type) {
         const fileId = task.attachment_file_id;

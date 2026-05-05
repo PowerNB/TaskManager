@@ -7,12 +7,12 @@ export type Scene =
     | "onboarding:quiet_hours_from"
     | "onboarding:quiet_hours_to"
     | "capture:awaiting_title"
+    | "capture:edit_title"
     | "capture:awaiting_category"
     | "capture:awaiting_duration"
     | "capture:awaiting_options"
     | "capture:awaiting_date"
     | "capture:awaiting_time"
-    | "capture:awaiting_time_date"
     | "capture:awaiting_delegate"
     | "notif:reschedule"
     | "notif:reschedule_custom"
@@ -29,6 +29,7 @@ export interface OnboardingDraft {
 }
 
 export interface CaptureDraft {
+    taskId?: string;
     title?: string;
     category?: Category;
     duration_tag?: DurationTag;
