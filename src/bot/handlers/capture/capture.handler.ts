@@ -183,7 +183,11 @@ const saveTask = async (ctx: BotContext) => {
 
 export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.command("add", async (ctx) => {
+        ctx.session.scene = null;
         ctx.session.capture = {};
+        ctx.session.onboarding = undefined;
+        ctx.session.brief = undefined;
+        ctx.session.rescheduleTaskId = undefined;
         clearHistory(ctx);
         await sendTitleStep(ctx);
     });
@@ -266,7 +270,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^inbox:done:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        const task = await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
+        const task = await taskRepository.update(taskId, { status: "DONE", completed_at: new Date(), last_activity_at: new Date() });
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
         const doneText = `✅ <b>${task.title}</b>\n<i>${buildTaskTags(task)}</i>`;
@@ -304,7 +308,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^inbox:delete:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        await taskRepository.update(taskId, { status: "DELETED" });
+        await taskRepository.update(taskId, { status: "DELETED", last_activity_at: new Date() });
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
         if (msg && "photo" in msg || msg && "video" in msg || msg && "document" in msg || msg && "audio" in msg || msg && "voice" in msg) {

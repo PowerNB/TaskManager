@@ -3,6 +3,7 @@ import { BotContext } from "#root/types/context.js";
 import { morningBriefService, DURATION_MINUTES } from "#root/services/brief/morning.service.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
+import { startEloSession } from "#root/bot/handlers/elo.handler.js";
 import {
     MORNING_BRIEF_TEXTS,
     FREE_TIME_PRESETS,
@@ -101,6 +102,12 @@ const sendFinalPlan = async (ctx: BotContext) => {
 
     ctx.session.scene = null;
     ctx.session.brief = undefined;
+
+    const userId = BigInt(ctx.from!.id);
+    const candidates = await morningBriefService.getCandidates(userId);
+    if (candidates.length >= 2) {
+        await startEloSession(ctx, 10);
+    }
 };
 
 export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {

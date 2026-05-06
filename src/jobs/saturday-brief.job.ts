@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { bullRedis } from "#root/infrastructure/redis.js";
 import { saturdayBriefService } from "#root/services/brief/saturday.service.js";
 import { sendSaturdayBrief } from "#root/bot/handlers/saturday-brief/saturday-brief.handler.js";
+import { startEloSessionFromJob } from "#root/bot/handlers/elo.handler.js";
 import { bot } from "#root/bot/index.js";
 import { logger } from "#root/logger.js";
 
@@ -35,6 +36,8 @@ export const saturdayBriefWorker = new Worker(
                     await saturdayBriefService.archiveFrozenTask(task.id);
                 }
             }
+
+            await startEloSessionFromJob(bot.api, userId, user.id, 30);
 
             logger.info({ userId, type: data.type }, "saturday brief sent");
         }
