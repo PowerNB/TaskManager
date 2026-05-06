@@ -1,5 +1,5 @@
 import { Context, SessionFlavor } from "grammy";
-import { Category, DurationTag } from "#root/infrastructure/generated/prisma/enums.js";
+import { Category, DurationTag } from "#root/types/enums.js";
 
 export type Scene =
     | "onboarding:timezone"

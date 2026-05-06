@@ -1,7 +1,7 @@
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { userRepository } from "#root/repositories/user.repository.js";
 import { canSend } from "#root/utils/time.js";
-import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
+import { TaskModel } from "#root/types/models.js";
 
 export interface DelegationNotification {
     task: TaskModel;
@@ -82,5 +82,26 @@ export const notificationService = {
     snoozeDelegation: async (taskId: string): Promise<void> => {
         const remindAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
         await taskRepository.update(taskId, { remind_delegation_at: remindAt });
+    },
+
+    markDone: async (taskId: string): Promise<void> => {
+        await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
+    },
+
+    markDeleted: async (taskId: string): Promise<void> => {
+        await taskRepository.update(taskId, { status: "DELETED" });
+    },
+
+    takeBack: async (taskId: string): Promise<void> => {
+        await taskRepository.update(taskId, {
+            delegated_to: null,
+            delegated_at: null,
+            remind_delegation_at: null,
+            last_activity_at: new Date(),
+        });
+    },
+
+    reschedule: async (taskId: string, date: Date): Promise<void> => {
+        await taskRepository.update(taskId, { due_date: date, last_activity_at: new Date() });
     },
 };

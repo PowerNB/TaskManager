@@ -1,3 +1,6 @@
+instructuion: If you need to reason something for yourself, do so in English. For explanation something for user explane in Russian
+
+
 TypeScript        — язык
 Grammy            — Telegram bot framework
 Grammy Sessions   — FSM диалогов
@@ -84,10 +87,10 @@ Repository Layer
 
 
 Важно понимать: 
-Bot Layer       знает о: Service Layer
-Service Layer   знает о: Repository Layer, Utils
-Repository Layer знает о: Infrastructure (Prisma)
-Jobs Layer      знает о: Service Layer
+Bot Layer       знает только о: Service Layer
+Service Layer   знает только о: Repository Layer, Utils
+Repository Layer знает только о: Infrastructure (Prisma)
+Jobs Layer      знает только о: Service Layer
 Utils           не знает ни о ком
 Infrastructure  не знает ни о ком
 

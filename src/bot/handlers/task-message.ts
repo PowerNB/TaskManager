@@ -1,5 +1,5 @@
 import { Api, InlineKeyboard } from "grammy";
-import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
+import { TaskModel } from "#root/types/models.js";
 
 const CATEGORY_LABELS: Record<string, string> = {
     CAREER: "💼 Карьера",

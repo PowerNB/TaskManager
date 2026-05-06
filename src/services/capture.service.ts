@@ -1,12 +1,21 @@
 import { taskRepository } from "#root/repositories/task.repository.js";
-import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
-import { Category, DurationTag } from "#root/infrastructure/generated/prisma/enums.js";
+import { TaskModel } from "#root/types/models.js";
+import { Category, DurationTag } from "#root/types/enums.js";
 
 interface CreateTaskParams {
     userId: bigint;
     title: string;
     category: Category;
     duration_tag: DurationTag;
+    due_date?: Date | null;
+    due_time?: Date | null;
+    delegated_to?: string | null;
+    attachment_file_id?: string | null;
+    attachment_type?: string | null;
+}
+
+interface UpdateTaskParams {
+    title?: string;
     due_date?: Date | null;
     due_time?: Date | null;
     delegated_to?: string | null;
@@ -36,6 +45,33 @@ export const captureService = {
             remind_delegation_at: remindDelegationAt,
             attachment_file_id: attachment_file_id ?? null,
             attachment_type: attachment_type ?? null,
+        });
+    },
+
+    getActiveTasks: async (userId: bigint): Promise<TaskModel[]> => {
+        return taskRepository.findActiveByUser(userId);
+    },
+
+    getTaskById: async (taskId: string): Promise<TaskModel | null> => {
+        return taskRepository.findById(taskId);
+    },
+
+    updateTask: async (taskId: string, params: UpdateTaskParams): Promise<TaskModel> => {
+        return taskRepository.update(taskId, { ...params, last_activity_at: new Date() });
+    },
+
+    markTaskDone: async (taskId: string): Promise<TaskModel> => {
+        return taskRepository.update(taskId, {
+            status: "DONE",
+            completed_at: new Date(),
+            last_activity_at: new Date(),
+        });
+    },
+
+    markTaskDeleted: async (taskId: string): Promise<TaskModel> => {
+        return taskRepository.update(taskId, {
+            status: "DELETED",
+            last_activity_at: new Date(),
         });
     },
 };

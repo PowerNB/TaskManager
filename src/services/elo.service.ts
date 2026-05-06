@@ -1,5 +1,5 @@
 import { taskRepository } from "#root/repositories/task.repository.js";
-import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
+import { TaskModel } from "#root/types/models.js";
 import { calcElo } from "#root/utils/elo.js";
 
 const shufflePairs = (tasks: TaskModel[]): Array<[TaskModel, TaskModel]> => {

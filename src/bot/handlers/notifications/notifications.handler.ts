@@ -1,6 +1,5 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
-import { taskRepository } from "#root/repositories/task.repository.js";
 import { notificationService } from "#root/services/notification.service.js";
 
 export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
@@ -8,7 +7,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^notif:delegation:done:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
+        await notificationService.markDone(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply("✅ Задача завершена.");
     });
@@ -26,12 +25,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^notif:delegation:take_back:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        await taskRepository.update(taskId, {
-            delegated_to: null,
-            delegated_at: null,
-            remind_delegation_at: null,
-            last_activity_at: new Date(),
-        });
+        await notificationService.takeBack(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply("↩ Задача возвращена тебе.");
     });
@@ -40,7 +34,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^notif:deadline:done:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
+        await notificationService.markDone(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply("✅ Задача завершена.");
     });
@@ -49,7 +43,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^notif:deadline:delete:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        await taskRepository.update(taskId, { status: "DELETED" });
+        await notificationService.markDeleted(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply("🗑 Задача удалена.");
     });
@@ -120,10 +114,7 @@ const resolveReschedulePreset = (preset: string): Date => {
 };
 
 const applyReschedule = async (taskId: string, date: Date): Promise<void> => {
-    await taskRepository.update(taskId, {
-        due_date: date,
-        last_activity_at: new Date(),
-    });
+    await notificationService.reschedule(taskId, date);
 };
 
 const formatDate = (date: Date): string => {

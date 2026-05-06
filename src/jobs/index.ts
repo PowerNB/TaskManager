@@ -1,10 +1,9 @@
+import { Api } from "grammy";
 import { notificationsQueue, morningBriefQueue, saturdayBriefQueue } from "#root/infrastructure/bullmq.js";
+import { createNotificationsWorker } from "./notifications.job.js";
+import { createMorningBriefWorker } from "./morning-brief.job.js";
+import { createSaturdayBriefWorker } from "./saturday-brief.job.js";
 import { logger } from "#root/logger.js";
-
-// Workers — import for side effects (registers the worker)
-import "./notifications.job.js";
-import "./morning-brief.job.js";
-import "./saturday-brief.job.js";
 
 const scheduleRecurringJobs = async () => {
     // Every minute — time deadlines (1 hour before due_time)
@@ -50,7 +49,10 @@ const scheduleRecurringJobs = async () => {
     logger.info("recurring jobs scheduled");
 };
 
-export const startJobs = async () => {
+export const startJobs = async (api: Api) => {
+    createNotificationsWorker(api);
+    createMorningBriefWorker(api);
+    createSaturdayBriefWorker(api);
     await scheduleRecurringJobs();
     logger.info("jobs started");
 };

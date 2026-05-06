@@ -1,7 +1,6 @@
 import { Api, Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { eloService } from "#root/services/elo.service.js";
-import { taskRepository } from "#root/repositories/task.repository.js";
 
 const buildKeyboard = (idA: string, idB: string, current: number, total: number): InlineKeyboard =>
     new InlineKeyboard()

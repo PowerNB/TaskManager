@@ -33,7 +33,7 @@ try {
         { command: "settings", description: "Настройки" },
     ]);
 
-    await startJobs();
+    await startJobs(bot.api);
 
     if (config.NODE_ENV === "production") {
         runner = run(bot);

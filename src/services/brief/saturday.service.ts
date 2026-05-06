@@ -1,7 +1,6 @@
 import { userRepository } from "#root/repositories/user.repository.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
-import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
-import { UserModel } from "#root/infrastructure/generated/prisma/models/User.js";
+import { TaskModel, UserModel } from "#root/types/models.js";
 
 export type SaturdayBriefType = "regular" | "monthly" | "quarterly";
 

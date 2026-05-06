@@ -1,8 +1,7 @@
 import { userRepository } from "#root/repositories/user.repository.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { canSend } from "#root/utils/time.js";
-import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
-import { UserModel } from "#root/infrastructure/generated/prisma/models/User.js";
+import { TaskModel, UserModel } from "#root/types/models.js";
 
 export const DURATION_MINUTES: Record<string, number> = {
     MIN_5: 5,
@@ -90,5 +89,20 @@ export const morningBriefService = {
 
     markBriefSent: async (userId: bigint): Promise<void> => {
         await userRepository.update(userId, { last_brief_sent_at: new Date() });
+    },
+
+    getTasksByIds: async (ids: string[]): Promise<(TaskModel | null)[]> => {
+        if (ids.length === 0) return [];
+        return Promise.all(ids.map((id) => taskRepository.findById(id)));
+    },
+
+    getPlannedMinutes: async (taskIds: string[]): Promise<number> => {
+        if (taskIds.length === 0) return 0;
+        let total = 0;
+        for (const id of taskIds) {
+            const task = await taskRepository.findById(id);
+            if (task) total += DURATION_MINUTES[task.duration_tag] ?? 0;
+        }
+        return total;
     },
 };

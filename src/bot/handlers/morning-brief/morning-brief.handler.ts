@@ -1,15 +1,10 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { morningBriefService, DURATION_MINUTES } from "#root/services/brief/morning.service.js";
-import { taskRepository } from "#root/repositories/task.repository.js";
-import { TaskModel } from "#root/infrastructure/generated/prisma/models/Task.js";
+import { TaskModel } from "#root/types/models.js";
 import { startEloSession } from "#root/bot/handlers/elo.handler.js";
-import {
-    MORNING_BRIEF_TEXTS,
-    FREE_TIME_PRESETS,
-    CATEGORY_LABELS,
-    DURATION_LABELS,
-} from "./const.js";
+import { MORNING_BRIEF_TEXTS } from "./const.js";
+import { FREE_TIME_PRESETS, CATEGORY_LABELS, DURATION_LABELS } from "#root/types/brief.js";
 
 const formatMinutes = (minutes: number): string => {
     if (minutes < 60) return `${minutes} мин`;
@@ -75,10 +70,9 @@ const sendFinalPlan = async (ctx: BotContext) => {
     const mandatoryMinutes = brief.mandatoryMinutes ?? 0;
     const plannedIds = brief.plannedTaskIds ?? [];
 
-    const mandatoryTasks = await taskRepository.findTodayMandatory(BigInt(ctx.from!.id));
-    const plannedTasks = plannedIds.length > 0
-        ? await Promise.all(plannedIds.map((id) => taskRepository.findById(id)))
-        : [];
+    const userId = BigInt(ctx.from!.id);
+    const mandatoryTasks = await morningBriefService.buildPlan(userId, freeMinutes).then((p) => p.mandatory);
+    const plannedTasks = await morningBriefService.getTasksByIds(plannedIds);
 
     const validPlanned = plannedTasks.filter((t): t is TaskModel => t !== null);
     const totalMinutes = mandatoryMinutes + validPlanned.reduce((s, t) => s + (DURATION_MINUTES[t.duration_tag] ?? 0), 0);
@@ -103,7 +97,6 @@ const sendFinalPlan = async (ctx: BotContext) => {
     ctx.session.scene = null;
     ctx.session.brief = undefined;
 
-    const userId = BigInt(ctx.from!.id);
     const candidates = await morningBriefService.getCandidates(userId);
     if (candidates.length >= 2) {
         await startEloSession(ctx, 10);
@@ -160,12 +153,10 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         const taskId = ctx.match[1];
         const brief = ctx.session.brief ?? {};
         const plannedTaskIds = [...(brief.plannedTaskIds ?? []), taskId];
-        const taskMinutes = brief.candidateIds
-            ? await getTaskMinutes(taskId)
-            : 0;
 
-        const remaining = (brief.freeMinutes ?? 0) - (brief.mandatoryMinutes ?? 0) -
-            (brief.plannedTaskIds ?? []).reduce((s) => s, 0);
+        const taskMinutes = await morningBriefService.getPlannedMinutes([taskId]);
+        const usedMinutes = await morningBriefService.getPlannedMinutes(brief.plannedTaskIds ?? []);
+        const remaining = (brief.freeMinutes ?? 0) - (brief.mandatoryMinutes ?? 0) - usedMinutes;
         const newRemaining = remaining - taskMinutes;
 
         ctx.session.brief = { ...brief, plannedTaskIds };
@@ -193,9 +184,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
 
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
 
-        const usedMinutes = (brief.plannedTaskIds ?? []).length > 0
-            ? await calcPlannedMinutes(brief.plannedTaskIds ?? [])
-            : 0;
+        const usedMinutes = await morningBriefService.getPlannedMinutes(brief.plannedTaskIds ?? []);
         const remaining = (brief.freeMinutes ?? 0) - (brief.mandatoryMinutes ?? 0) - usedMinutes;
 
         const candidates = await morningBriefService.getCandidates(BigInt(ctx.from!.id));
@@ -232,20 +221,6 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         ctx.session.scene = null;
         await startBriefPlanStep(ctx, freeMinutes);
     });
-};
-
-const getTaskMinutes = async (taskId: string): Promise<number> => {
-    const task = await taskRepository.findById(taskId);
-    if (!task) return 0;
-    return DURATION_MINUTES[task.duration_tag] ?? 0;
-};
-
-const calcPlannedMinutes = async (ids: string[]): Promise<number> => {
-    let total = 0;
-    for (const id of ids) {
-        total += await getTaskMinutes(id);
-    }
-    return total;
 };
 
 export const startBriefForUser = async (

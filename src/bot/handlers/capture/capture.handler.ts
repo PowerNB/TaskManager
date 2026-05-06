@@ -1,13 +1,12 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext, CaptureDraft } from "#root/types/context.js";
 import { captureService } from "#root/services/capture.service.js";
+import { settingsService } from "#root/services/settings.service.js";
 import { isTimeInQuietHours } from "#root/utils/time.js";
-import { userRepository } from "#root/repositories/user.repository.js";
-import { taskRepository } from "#root/repositories/task.repository.js";
 import { pushScene, popScene, clearHistory } from "#root/utils/scene.js";
 import { sendMainMenu } from "#root/bot/handlers/menu.js";
 import { sendTaskMessage, buildTaskTags } from "#root/bot/handlers/task-message.js";
-import { Category, DurationTag } from "#root/infrastructure/generated/prisma/enums.js";
+import { Category, DurationTag } from "#root/types/enums.js";
 import {
     CAPTURE_TEXTS,
     CATEGORY_OPTIONS,
@@ -155,14 +154,13 @@ const saveTask = async (ctx: BotContext) => {
     const userId = BigInt(ctx.from!.id);
 
     if (draft.taskId) {
-        await taskRepository.update(draft.taskId, {
+        await captureService.updateTask(draft.taskId, {
             title: draft.title,
             due_date: draft.due_date ? new Date(draft.due_date) : null,
             due_time: buildDueTime(draft.due_date, draft.due_time),
             delegated_to: draft.delegated_to ?? null,
             attachment_file_id: draft.attachment_file_id ?? null,
             attachment_type: draft.attachment_type ?? null,
-            last_activity_at: new Date(),
         });
     } else {
         await captureService.createTask({
@@ -194,7 +192,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.command("inbox", async (ctx) => {
         const userId = BigInt(ctx.from!.id);
-        const tasks = await taskRepository.findActiveByUser(userId);
+        const tasks = await captureService.getActiveTasks(userId);
 
         if (tasks.length === 0) {
             await ctx.reply("📥 Инбокс пуст. Добавь первую задачу!", {
@@ -239,7 +237,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery("capture:inbox", async (ctx) => {
         await ctx.answerCallbackQuery();
         const userId = BigInt(ctx.from.id);
-        const tasks = await taskRepository.findActiveByUser(userId);
+        const tasks = await captureService.getActiveTasks(userId);
 
         if (tasks.length === 0) {
             await ctx.reply("📥 Инбокс пуст. Добавь первую задачу!", {
@@ -270,7 +268,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^inbox:done:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        const task = await taskRepository.update(taskId, { status: "DONE", completed_at: new Date(), last_activity_at: new Date() });
+        const task = await captureService.markTaskDone(taskId);
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
         const doneText = `✅ <b>${task.title}</b>\n<i>${buildTaskTags(task)}</i>`;
@@ -284,7 +282,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^inbox:edit:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        const task = await taskRepository.findById(taskId);
+        const task = await captureService.getTaskById(taskId);
         if (!task) return;
 
         const due_date = task.due_date ? task.due_date.toISOString().split("T")[0] : undefined;
@@ -308,7 +306,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(/^inbox:delete:(.+)$/, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        await taskRepository.update(taskId, { status: "DELETED", last_activity_at: new Date() });
+        await captureService.markTaskDeleted(taskId);
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
         if (msg && "photo" in msg || msg && "video" in msg || msg && "document" in msg || msg && "audio" in msg || msg && "voice" in msg) {
@@ -515,7 +513,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
             const dueTime = value;
             const userId = BigInt(ctx.from.id);
-            const user = await userRepository.findById(userId);
+            const user = await settingsService.findUser(userId);
 
             if (user?.quiet_hours_from && user.quiet_hours_to) {
                 const timeMinusHour = dueTime.split(":").map(Number);

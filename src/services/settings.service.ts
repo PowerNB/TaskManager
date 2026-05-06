@@ -1,7 +1,15 @@
 import { userRepository } from "#root/repositories/user.repository.js";
-import { UserModel } from "#root/infrastructure/generated/prisma/models/User.js";
+import { UserModel } from "#root/types/models.js";
 
 export const settingsService = {
+    findUser: async (userId: bigint): Promise<UserModel | null> => {
+        return userRepository.findById(userId);
+    },
+
+    ensureUser: async (userId: bigint, username: string | null): Promise<UserModel> => {
+        return userRepository.upsert(userId, username);
+    },
+
     setTimezone: async (userId: bigint, timezone: string): Promise<UserModel> => {
         return userRepository.update(userId, { timezone });
     },

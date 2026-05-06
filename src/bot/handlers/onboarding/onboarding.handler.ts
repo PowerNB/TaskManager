@@ -1,7 +1,6 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { settingsService } from "#root/services/settings.service.js";
-import { userRepository } from "#root/repositories/user.repository.js";
 import { isTimeInQuietHours } from "#root/utils/time.js";
 import {
     ONBOARDING_TEXTS,
@@ -19,7 +18,7 @@ const isValidTime = (value: string): boolean =>
 
 export const sendSettingsMenu = async (ctx: BotContext) => {
     const userId = BigInt(ctx.from!.id);
-    const user = await userRepository.findById(userId);
+    const user = await settingsService.findUser(userId);
     if (!user) return;
 
     const quietHours =
@@ -108,7 +107,7 @@ const sendCompletionStep = async (ctx: BotContext) => {
 export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
     bot.command("start", async (ctx) => {
         const userId = BigInt(ctx.from!.id);
-        const user = await userRepository.findById(userId);
+        const user = await settingsService.findUser(userId);
 
         if (user && ctx.session.scene === null) {
             await sendMainMenu(ctx);
@@ -119,7 +118,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
             return;
         }
 
-        await userRepository.upsert(userId, ctx.from!.username ?? null);
+        await settingsService.ensureUser(userId, ctx.from!.username ?? null);
 
         await ctx.reply(ONBOARDING_TEXTS.WELCOME);
         ctx.session.onboarding = {};
