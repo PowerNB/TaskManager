@@ -29,7 +29,6 @@ export const MORNING_BRIEF_TEXTS = {
     MANDATORY_TASK_PREFIX: "📌",
     CANDIDATE_TASK_PREFIX: "📋",
     LIST_ITEM_PREFIX: "—",
-    MESSAGE_TEXT_EVENT: "message:text",
     TASK_FORMAT: (title: string, duration: string) => `${title} — ${duration}`,
     CANDIDATE_MESSAGE: (remaining: string, title: string, tags: string) =>
         `Осталось: ${remaining}\n\n📋 ${title}\n${tags}`,
@@ -58,4 +57,8 @@ export const MORNING_BRIEF_PATTERNS = {
 export const MORNING_BRIEF_SCENES = {
     AWAITING_CUSTOM_HOURS: "brief:awaiting_custom_hours",
     SELECTING_CANDIDATES: "brief:selecting_candidates",
+} as const;
+
+export const MORNING_BRIEF_EVENTS = {
+    MESSAGE_TEXT: "message:text",
 } as const;

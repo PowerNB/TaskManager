@@ -2,6 +2,7 @@ import { userRepository } from "#root/repositories/user.repository.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { canSend, getNowTime, toUserLocal } from "#root/utils/time.js";
 import { TaskModel, UserModel } from "#root/types/models.js";
+import { logger } from "#root/logger.js";
 
 export const DURATION_MINUTES: Record<string, number> = {
     MIN_5: 5,
@@ -56,6 +57,7 @@ export const morningBriefService = {
             result.push({ user });
         }
 
+        logger.debug({ count: result.length }, "users due for brief fetched");
         return result;
     },
 
@@ -64,6 +66,7 @@ export const morningBriefService = {
         const mandatoryMinutes = mandatory.reduce((sum, t) => sum + (DURATION_MINUTES[t.duration_tag] ?? 0), 0);
         const overloaded = mandatoryMinutes >= freeMinutes;
 
+        logger.debug({ userId: String(userId), freeMinutes, mandatoryMinutes, overloaded }, "brief plan built");
         return {
             mandatory,
             mandatoryMinutes,
@@ -78,6 +81,7 @@ export const morningBriefService = {
 
     markBriefSent: async (userId: bigint): Promise<void> => {
         await userRepository.update(userId, { last_brief_sent_at: new Date() });
+        logger.info({ userId: String(userId) }, "brief marked sent");
     },
 
     getTasksByIds: async (ids: string[]): Promise<(TaskModel | null)[]> => {

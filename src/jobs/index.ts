@@ -4,49 +4,46 @@ import { createNotificationsWorker } from "./notifications.job.js";
 import { createMorningBriefWorker } from "./morning-brief.job.js";
 import { createSaturdayBriefWorker } from "./saturday-brief.job.js";
 import { logger } from "#root/logger.js";
+import { JOB_NAMES, CRON_PATTERNS, JOBS_LOG } from "./const.js";
 
 const scheduleRecurringJobs = async () => {
-    // Every minute — time deadlines (1 hour before due_time)
     await notificationsQueue.add(
-        "check-time-deadlines",
+        JOB_NAMES.CHECK_TIME_DEADLINES,
         {},
         {
-            repeat: { pattern: "* * * * *" },
-            jobId: "check-time-deadlines",
+            repeat: { pattern: CRON_PATTERNS.EVERY_MINUTE },
+            jobId: JOB_NAMES.CHECK_TIME_DEADLINES,
         },
     );
 
-    // Every day at 09:00 UTC — delegations + date deadlines
     await notificationsQueue.add(
-        "check-delegations-and-date-deadlines",
+        JOB_NAMES.CHECK_DELEGATIONS_AND_DATE_DEADLINES,
         {},
         {
-            repeat: { pattern: "0 9 * * *" },
-            jobId: "check-delegations-and-date-deadlines",
+            repeat: { pattern: CRON_PATTERNS.DAILY_9_UTC },
+            jobId: JOB_NAMES.CHECK_DELEGATIONS_AND_DATE_DEADLINES,
         },
     );
 
-    // Every minute — morning brief (checks per-user timezone + brief time)
     await morningBriefQueue.add(
-        "morning-brief",
+        JOB_NAMES.MORNING_BRIEF,
         {},
         {
-            repeat: { pattern: "* * * * *" },
-            jobId: "morning-brief",
+            repeat: { pattern: CRON_PATTERNS.EVERY_MINUTE },
+            jobId: JOB_NAMES.MORNING_BRIEF,
         },
     );
 
-    // Every Saturday at 20:00 UTC — saturday brief
     await saturdayBriefQueue.add(
-        "saturday-brief",
+        JOB_NAMES.SATURDAY_BRIEF,
         {},
         {
-            repeat: { pattern: "0 20 * * 6" },
-            jobId: "saturday-brief",
+            repeat: { pattern: CRON_PATTERNS.SATURDAY_20_UTC },
+            jobId: JOB_NAMES.SATURDAY_BRIEF,
         },
     );
 
-    logger.info("recurring jobs scheduled");
+    logger.info(JOBS_LOG.RECURRING_SCHEDULED);
 };
 
 export const startJobs = async (api: Api) => {
@@ -54,5 +51,5 @@ export const startJobs = async (api: Api) => {
     createMorningBriefWorker(api);
     createSaturdayBriefWorker(api);
     await scheduleRecurringJobs();
-    logger.info("jobs started");
+    logger.info(JOBS_LOG.JOBS_STARTED);
 };

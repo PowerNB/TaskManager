@@ -5,33 +5,43 @@ import { saturdayBriefService, SaturdayBriefData } from "#root/services/brief/sa
 import { eloService } from "#root/services/elo.service.js";
 import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/brief.js";
 import { logger } from "#root/logger.js";
+import {
+    QUEUE_NAMES,
+    SATURDAY_JOB_TEXTS,
+    SATURDAY_JOB_BUTTONS,
+    SATURDAY_JOB_CALLBACKS,
+    ELO_JOB_TEXTS,
+    ELO_JOB_BUTTONS,
+    ELO_JOB_CALLBACKS,
+    JOBS_LOG,
+} from "./const.js";
 
 const formatDaysSince = (date: Date): string => {
     const days = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
-    return `${days} дн`;
+    return SATURDAY_JOB_TEXTS.DAYS_SINCE(days);
 };
 
 const buildStatsText = (data: SaturdayBriefData): string => {
     const { stats } = data;
-    const lines: string[] = ["📊 Итоги недели\n"];
+    const lines: string[] = [SATURDAY_JOB_TEXTS.STATS_HEADER];
 
     if (stats.thisWeek === 0) {
-        lines.push("Закрыто задач: 0");
-        lines.push("На этой неделе ни одной задачи не закрыто.");
-        lines.push("Бывает — на следующей наверстаем.");
+        lines.push(SATURDAY_JOB_TEXTS.STATS_CLOSED_ZERO);
+        lines.push(SATURDAY_JOB_TEXTS.STATS_NO_TASKS_THIS_WEEK);
+        lines.push(SATURDAY_JOB_TEXTS.STATS_MOTIVATIONAL);
     } else {
-        lines.push(`Закрыто задач: ${stats.thisWeek}`);
+        lines.push(SATURDAY_JOB_TEXTS.STATS_CLOSED(stats.thisWeek));
         if (stats.lastWeek !== null) {
             const diff = stats.thisWeek - stats.lastWeek;
             const sign = diff > 0 ? "+" : "";
-            lines.push(`к прошлой неделе: ${sign}${diff}`);
+            lines.push(SATURDAY_JOB_TEXTS.STATS_DIFF(sign, diff));
         }
         if (stats.monthlyAvg !== null) {
-            lines.push(`среднее за месяц: ${stats.monthlyAvg} в неделю`);
+            lines.push(SATURDAY_JOB_TEXTS.STATS_AVG(stats.monthlyAvg));
         }
     }
 
-    lines.push(`\nАктивных сейчас: ${stats.active}`);
+    lines.push(SATURDAY_JOB_TEXTS.STATS_ACTIVE(stats.active));
     return lines.join("\n");
 };
 
@@ -40,43 +50,42 @@ type SendMessage = (text: string, keyboard?: InlineKeyboard) => Promise<void>;
 const sendSaturdayBrief = async (data: SaturdayBriefData, send: SendMessage): Promise<void> => {
     if (data.type === "quarterly" && data.archivedTasks.length > 0) {
         const lines = [
-            `🗂 Квартальный архив\n`,
-            "За этот квартал так и не были выполнены:",
+            SATURDAY_JOB_TEXTS.QUARTERLY_ARCHIVE_HEADER,
+            SATURDAY_JOB_TEXTS.QUARTERLY_ARCHIVE_INTRO,
             ...data.archivedTasks.map((t, i) => `${i + 1}. ${t.title}`),
-            "\nЭти задачи удалены. Если что-то важное — добавь заново.",
+            SATURDAY_JOB_TEXTS.QUARTERLY_ARCHIVE_FOOTER,
         ];
         await send(lines.join("\n"));
         await saturdayBriefService.deleteArchivedTasks(data.archivedTasks.map((t) => t.id));
     }
 
     if ((data.type === "monthly" || data.type === "quarterly") && data.frozenTasks.length > 0) {
-        const now = new Date();
-        const monthName = now.toLocaleString("ru-RU", { month: "long" });
-        await send(`❄️ Холодильник — ${monthName}\n`);
+        const monthName = new Date().toLocaleString("ru-RU", { month: "long" });
+        await send(SATURDAY_JOB_TEXTS.FROZEN_HEADER(monthName));
 
         for (const task of data.frozenTasks) {
             const tags = [CATEGORY_LABELS[task.category], DURATION_LABELS[task.duration_tag]].join(" ");
             const daysSince = task.frozen_at ? formatDaysSince(task.frozen_at) : "?";
             const keyboard = new InlineKeyboard()
-                .text("Вернуть", `sat:frozen:return:${task.id}`)
-                .text("Удалить", `sat:frozen:delete:${task.id}`);
-            await send(`${task.title}\n${tags} — заморожена ${daysSince}`, keyboard);
+                .text(SATURDAY_JOB_BUTTONS.FROZEN_RETURN, SATURDAY_JOB_CALLBACKS.FROZEN_RETURN(task.id))
+                .text(SATURDAY_JOB_BUTTONS.FROZEN_DELETE, SATURDAY_JOB_CALLBACKS.FROZEN_DELETE(task.id));
+            await send(SATURDAY_JOB_TEXTS.FROZEN_TASK(task.title, tags, daysSince), keyboard);
         }
     }
 
     await send(buildStatsText(data));
 
     if (data.staleTasks.length > 0) {
-        await send("📋 Задачи без движения 7+ дней\nЕсли ничего не сделаешь — уйдут в холодильник.\n");
+        await send(SATURDAY_JOB_TEXTS.STALE_SECTION_HEADER);
 
         for (const task of data.staleTasks) {
             const tags = [CATEGORY_LABELS[task.category], DURATION_LABELS[task.duration_tag]].join(" ");
             const daysSince = formatDaysSince(task.last_activity_at);
             const keyboard = new InlineKeyboard()
-                .text("Оставить", `sat:stale:keep:${task.id}`)
-                .text("Выполнено", `sat:stale:done:${task.id}`)
-                .text("Удалить", `sat:stale:delete:${task.id}`);
-            await send(`${task.title}\n${tags} — лежит ${daysSince}`, keyboard);
+                .text(SATURDAY_JOB_BUTTONS.STALE_KEEP, SATURDAY_JOB_CALLBACKS.STALE_KEEP(task.id))
+                .text(SATURDAY_JOB_BUTTONS.STALE_DONE, SATURDAY_JOB_CALLBACKS.STALE_DONE(task.id))
+                .text(SATURDAY_JOB_BUTTONS.STALE_DELETE, SATURDAY_JOB_CALLBACKS.STALE_DELETE(task.id));
+            await send(SATURDAY_JOB_TEXTS.STALE_TASK(task.title, tags, daysSince), keyboard);
         }
     }
 };
@@ -84,28 +93,26 @@ const sendSaturdayBrief = async (data: SaturdayBriefData, send: SendMessage): Pr
 const sendEloPair = async (api: Api, chatId: number, userId: bigint, pairCount: number): Promise<void> => {
     const pairs = await eloService.getPairs(userId, 1);
     if (pairs.length === 0) {
-        await api.sendMessage(chatId, "✅ Приоритеты обновлены.", { reply_markup: new InlineKeyboard() });
+        await api.sendMessage(chatId, ELO_JOB_TEXTS.DONE, { reply_markup: new InlineKeyboard() });
         return;
     }
 
     const [taskA, taskB] = pairs[0];
     const keyboard = new InlineKeyboard()
-        .text("1️⃣ Первая", `elo:pick:${taskA.id}:${taskB.id}:0:${pairCount}`)
-        .text("2️⃣ Вторая", `elo:pick:${taskB.id}:${taskA.id}:0:${pairCount}`)
+        .text(ELO_JOB_BUTTONS.FIRST, ELO_JOB_CALLBACKS.PICK(taskA.id, taskB.id, 0, pairCount))
+        .text(ELO_JOB_BUTTONS.SECOND, ELO_JOB_CALLBACKS.PICK(taskB.id, taskA.id, 0, pairCount))
         .row()
-        .text("— Пропустить", `elo:skip:0:${pairCount}`);
-    await api.sendMessage(
-        chatId,
-        `Расставим приоритеты.\nЧто важнее прямо сейчас? (1/${pairCount})\n\n1️⃣ ${taskA.title}\n2️⃣ ${taskB.title}`,
-        { reply_markup: keyboard },
-    );
+        .text(ELO_JOB_BUTTONS.SKIP, ELO_JOB_CALLBACKS.SKIP(0, pairCount));
+
+    const text = ELO_JOB_TEXTS.PROMPT(pairCount) + ELO_JOB_TEXTS.TASK_LINE(taskA.title, taskB.title);
+    await api.sendMessage(chatId, text, { reply_markup: keyboard });
 };
 
 export const createSaturdayBriefWorker = (api: Api) => {
     const worker = new Worker(
-        "saturday-brief",
+        QUEUE_NAMES.SATURDAY_BRIEF,
         async (job) => {
-            logger.debug({ jobName: job.name }, "saturday-brief job started");
+            logger.debug({ jobName: job.name }, JOBS_LOG.SATURDAY_BRIEF_STARTED);
 
             const users = await saturdayBriefService.getAllUsers();
 
@@ -129,14 +136,14 @@ export const createSaturdayBriefWorker = (api: Api) => {
 
                 await sendEloPair(api, userId, user.id, 30);
 
-                logger.info({ userId, type: data.type }, "saturday brief sent");
+                logger.info({ userId, type: data.type }, JOBS_LOG.SATURDAY_BRIEF_SENT);
             }
         },
         { connection: bullRedis },
     );
 
     worker.on("failed", (job, err) => {
-        logger.error({ jobId: job?.id, err }, "saturday-brief job failed");
+        logger.error({ jobId: job?.id, err }, JOBS_LOG.SATURDAY_BRIEF_FAILED);
     });
 
     return worker;

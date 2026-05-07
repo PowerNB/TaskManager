@@ -3,7 +3,16 @@ import { Api, InlineKeyboard } from "grammy";
 import { bullRedis } from "#root/infrastructure/redis.js";
 import { notificationService } from "#root/services/notification.service.js";
 import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/brief.js";
+import { formatTimeUTCHHmm } from "#root/utils/time.js";
 import { logger } from "#root/logger.js";
+import {
+    QUEUE_NAMES,
+    JOB_NAMES,
+    NOTIF_JOB_TEXTS,
+    NOTIF_JOB_BUTTONS,
+    NOTIF_JOB_CALLBACKS,
+    JOBS_LOG,
+} from "./const.js";
 
 export const createNotificationsWorker = (api: Api) => {
     const sendDelegationNotifications = async () => {
@@ -13,18 +22,18 @@ export const createNotificationsWorker = (api: Api) => {
             if (!canSendNow) continue;
 
             const keyboard = new InlineKeyboard()
-                .text("✅ Да, готово", `notif:delegation:done:${task.id}`)
-                .text("⏳ Ещё нет", `notif:delegation:snooze:${task.id}`)
+                .text(NOTIF_JOB_BUTTONS.DELEGATION_DONE, NOTIF_JOB_CALLBACKS.DELEGATION_DONE(task.id))
+                .text(NOTIF_JOB_BUTTONS.DELEGATION_SNOOZE, NOTIF_JOB_CALLBACKS.DELEGATION_SNOOZE(task.id))
                 .row()
-                .text("↩ Забрать задачу себе", `notif:delegation:take_back:${task.id}`);
+                .text(NOTIF_JOB_BUTTONS.DELEGATION_TAKE_BACK, NOTIF_JOB_CALLBACKS.DELEGATION_TAKE_BACK(task.id));
 
-            await api.sendMessage(
-                Number(userId),
-                `🤝 Делегирование — напоминание\n\n3 дня назад ты передал задачу:\n"${task.title}" → ${task.delegated_to}\n\nОн уже сделал?`,
-                { reply_markup: keyboard },
-            );
+            const text =
+                NOTIF_JOB_TEXTS.DELEGATION_HEADER +
+                NOTIF_JOB_TEXTS.DELEGATION_BODY(task.title, task.delegated_to ?? "");
 
-            logger.info({ taskId: task.id, userId }, "delegation notification sent");
+            await api.sendMessage(Number(userId), text, { reply_markup: keyboard });
+
+            logger.info({ taskId: task.id, userId }, JOBS_LOG.DELEGATION_SENT);
         }
     };
 
@@ -39,17 +48,17 @@ export const createNotificationsWorker = (api: Api) => {
                 .join(" ");
 
             const keyboard = new InlineKeyboard()
-                .text("✅ Выполнено", `notif:deadline:done:${task.id}`)
-                .text("📅 Перенести", `notif:deadline:reschedule:${task.id}`)
-                .text("🗑 Удалить", `notif:deadline:delete:${task.id}`);
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_DONE, NOTIF_JOB_CALLBACKS.DEADLINE_DONE(task.id))
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_RESCHEDULE, NOTIF_JOB_CALLBACKS.DEADLINE_RESCHEDULE(task.id))
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_DELETE, NOTIF_JOB_CALLBACKS.DEADLINE_DELETE(task.id));
 
-            await api.sendMessage(
-                Number(userId),
-                `📅 Сегодня дедлайн\n\n"${task.title}"\n${tags}`,
-                { reply_markup: keyboard },
-            );
+            const text =
+                NOTIF_JOB_TEXTS.DATE_DEADLINE_HEADER +
+                NOTIF_JOB_TEXTS.DATE_DEADLINE_BODY(task.title, tags);
 
-            logger.info({ taskId: task.id, userId }, "date deadline notification sent");
+            await api.sendMessage(Number(userId), text, { reply_markup: keyboard });
+
+            logger.info({ taskId: task.id, userId }, JOBS_LOG.DATE_DEADLINE_SENT);
         }
     };
 
@@ -61,33 +70,31 @@ export const createNotificationsWorker = (api: Api) => {
                 .filter(Boolean)
                 .join(" ");
 
-            const dueTime = task.due_time
-                ? `${String(task.due_time.getHours()).padStart(2, "0")}:${String(task.due_time.getMinutes()).padStart(2, "0")}`
-                : "";
+            const dueTime = task.due_time ? formatTimeUTCHHmm(task.due_time) : "";
 
             const keyboard = new InlineKeyboard()
-                .text("✅ Выполнено", `notif:deadline:done:${task.id}`)
-                .text("🗑 Удалить", `notif:deadline:delete:${task.id}`);
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_DONE, NOTIF_JOB_CALLBACKS.DEADLINE_DONE(task.id))
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_DELETE, NOTIF_JOB_CALLBACKS.DEADLINE_DELETE(task.id));
 
-            await api.sendMessage(
-                Number(userId),
-                `⏰ Через час — ${dueTime}\n\n"${task.title}"\n${tags}`,
-                { reply_markup: keyboard },
-            );
+            const text =
+                NOTIF_JOB_TEXTS.TIME_DEADLINE_HEADER(dueTime) +
+                NOTIF_JOB_TEXTS.TIME_DEADLINE_BODY(task.title, tags);
 
-            logger.info({ taskId: task.id, userId }, "time deadline notification sent");
+            await api.sendMessage(Number(userId), text, { reply_markup: keyboard });
+
+            logger.info({ taskId: task.id, userId }, JOBS_LOG.TIME_DEADLINE_SENT);
         }
     };
 
     const worker = new Worker(
-        "notifications",
+        QUEUE_NAMES.NOTIFICATIONS,
         async (job) => {
-            logger.debug({ jobName: job.name }, "notifications job started");
+            logger.debug({ jobName: job.name }, JOBS_LOG.NOTIFICATIONS_STARTED);
 
-            if (job.name === "check-delegations-and-date-deadlines") {
+            if (job.name === JOB_NAMES.CHECK_DELEGATIONS_AND_DATE_DEADLINES) {
                 await sendDelegationNotifications();
                 await sendDateDeadlineNotifications();
-            } else if (job.name === "check-time-deadlines") {
+            } else if (job.name === JOB_NAMES.CHECK_TIME_DEADLINES) {
                 await sendTimeDeadlineNotifications();
             }
         },
@@ -95,7 +102,7 @@ export const createNotificationsWorker = (api: Api) => {
     );
 
     worker.on("failed", (job, err) => {
-        logger.error({ jobId: job?.id, jobName: job?.name, err }, "notifications job failed");
+        logger.error({ jobId: job?.id, jobName: job?.name, err }, JOBS_LOG.NOTIFICATIONS_FAILED);
     });
 
     return worker;

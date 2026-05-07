@@ -2,6 +2,7 @@ import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { notificationService } from "#root/services/notification.service.js";
 import { formatDateDisplay, parseDateString, resolveDatePreset } from "#root/utils/time.js";
+import { logger } from "#root/logger.js";
 import {
     NOTIF_TEXTS,
     NOTIF_BUTTONS,
@@ -15,6 +16,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(NOTIF_PATTERNS.DELEGATION_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "delegation: marked done");
         await notificationService.markDone(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply(NOTIF_TEXTS.TASK_DONE);
@@ -23,6 +25,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(NOTIF_PATTERNS.DELEGATION_SNOOZE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "delegation: snoozed");
         await notificationService.snoozeDelegation(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply(NOTIF_TEXTS.DELEGATION_SNOOZED);
@@ -31,6 +34,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(NOTIF_PATTERNS.DELEGATION_TAKE_BACK, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "delegation: taken back");
         await notificationService.takeBack(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply(NOTIF_TEXTS.TASK_TAKEN_BACK);
@@ -39,6 +43,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(NOTIF_PATTERNS.DEADLINE_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "deadline: marked done");
         await notificationService.markDone(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply(NOTIF_TEXTS.TASK_DONE);
@@ -47,6 +52,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(NOTIF_PATTERNS.DEADLINE_DELETE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "deadline: deleted");
         await notificationService.markDeleted(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await ctx.reply(NOTIF_TEXTS.TASK_DELETED);
@@ -55,6 +61,7 @@ export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(NOTIF_PATTERNS.DEADLINE_RESCHEDULE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "deadline: reschedule started");
         ctx.session.scene = NOTIF_SCENES.RESCHEDULE;
         ctx.session.rescheduleTaskId = taskId;
 

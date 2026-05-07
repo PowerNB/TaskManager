@@ -1,5 +1,6 @@
 import { Bot } from "grammy";
 import { BotContext } from "#root/types/context.js";
+import { logger } from "#root/logger.js";
 import {
     sendTimezoneStep,
     sendBriefTimeStep,
@@ -12,28 +13,33 @@ import { MENU_CALLBACKS } from "#root/bot/handlers/menu/const.js";
 
 export const registerSettingsHandler = (bot: Bot<BotContext>) => {
     bot.command("settings", async (ctx) => {
+        logger.debug({ userId: ctx.from!.id }, "command /settings");
         await sendSettingsMenu(ctx);
     });
 
     bot.callbackQuery(SETTINGS_CALLBACKS.OPEN, async (ctx) => {
         await ctx.answerCallbackQuery();
+        logger.debug({ userId: ctx.from.id }, "settings: opened");
         await sendSettingsMenu(ctx);
     });
 
     bot.callbackQuery(SETTINGS_CALLBACKS.TIMEZONE, async (ctx) => {
         await ctx.answerCallbackQuery();
+        logger.info({ userId: ctx.from.id }, "settings: editing timezone");
         ctx.session.onboarding = { isEditing: true };
         await sendTimezoneStep(ctx);
     });
 
     bot.callbackQuery(SETTINGS_CALLBACKS.BRIEF_TIME, async (ctx) => {
         await ctx.answerCallbackQuery();
+        logger.info({ userId: ctx.from.id }, "settings: editing brief time");
         ctx.session.onboarding = { isEditing: true };
         await sendBriefTimeStep(ctx);
     });
 
     bot.callbackQuery(SETTINGS_CALLBACKS.QUIET_HOURS, async (ctx) => {
         await ctx.answerCallbackQuery();
+        logger.info({ userId: ctx.from.id }, "settings: editing quiet hours");
         ctx.session.onboarding = { isEditing: true };
         await sendQuietHoursStep(ctx);
     });

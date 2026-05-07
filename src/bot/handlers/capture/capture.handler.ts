@@ -2,6 +2,7 @@ import { Bot, InlineKeyboard } from "grammy";
 import { BotContext, CaptureDraft } from "#root/types/context.js";
 import { captureService } from "#root/services/capture.service.js";
 import { settingsService } from "#root/services/settings.service.js";
+import { logger } from "#root/logger.js";
 import { isValidTime, parseDateString, formatDate, formatTimeUTCHHmm, resolveDatePreset, formatIsoDateShort, isTimeAffectedByQuietHours } from "#root/utils/time.js";
 import { pushScene, popScene, clearHistory } from "#root/bot/utils/scene.js";
 import { sendMainMenu } from "#root/bot/handlers/menu/menu.js";
@@ -160,6 +161,7 @@ const saveTask = async (ctx: BotContext) => {
 
 export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.command("add", async (ctx) => {
+        logger.debug({ userId: ctx.from!.id }, "command /add");
         ctx.session.scene = null;
         ctx.session.capture = {};
         ctx.session.onboarding = undefined;
@@ -170,6 +172,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     });
 
     bot.command("inbox", async (ctx) => {
+        logger.debug({ userId: ctx.from!.id }, "command /inbox");
         const userId = BigInt(ctx.from!.id);
         const tasks = await captureService.getActiveTasks(userId);
 
@@ -247,6 +250,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(CAPTURE_PATTERNS.INBOX_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "inbox: task done");
         const task = await captureService.markTaskDone(taskId);
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
@@ -283,6 +287,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(CAPTURE_PATTERNS.INBOX_DELETE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from.id, taskId }, "inbox: task deleted");
         await captureService.markTaskDeleted(taskId);
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
@@ -362,6 +367,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_CALLBACKS.OPTION_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
+        logger.info({ userId: ctx.from.id }, "capture: task saved");
         await saveTask(ctx);
     });
 
@@ -432,6 +438,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
             }
 
             if (title.length > TITLE_MAX_LENGTH) {
+                logger.warn({ userId: ctx.from.id, length: title.length }, "capture: title too long");
                 await ctx.reply(CAPTURE_TEXTS.TITLE_TOO_LONG);
                 return;
             }

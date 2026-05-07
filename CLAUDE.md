@@ -1,5 +1,6 @@
 instructuion: If you need to reason something for yourself, do so in English. For explanation something for user explane in Russian
 
+Всегда используй mcp code-review-graph и gitnexus
 
 TypeScript        — язык
 Grammy            — Telegram bot framework

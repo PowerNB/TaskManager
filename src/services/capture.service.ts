@@ -1,6 +1,7 @@
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { TaskModel } from "#root/types/models.js";
 import { Category, DurationTag } from "#root/types/enums.js";
+import { logger } from "#root/logger.js";
 
 interface CreateTaskParams {
     userId: bigint;
@@ -33,7 +34,7 @@ export const captureService = {
             ? new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
             : null;
 
-        return taskRepository.create({
+        const task = await taskRepository.create({
             user: { connect: { id: userId } },
             title,
             category,
@@ -46,6 +47,8 @@ export const captureService = {
             attachment_file_id: attachment_file_id ?? null,
             attachment_type: attachment_type ?? null,
         });
+        logger.info({ taskId: task.id, userId: String(userId) }, "task created");
+        return task;
     },
 
     getActiveTasks: async (userId: bigint): Promise<TaskModel[]> => {
@@ -57,21 +60,27 @@ export const captureService = {
     },
 
     updateTask: async (taskId: string, params: UpdateTaskParams): Promise<TaskModel> => {
-        return taskRepository.update(taskId, { ...params, last_activity_at: new Date() });
+        const task = await taskRepository.update(taskId, { ...params, last_activity_at: new Date() });
+        logger.info({ taskId }, "task updated");
+        return task;
     },
 
     markTaskDone: async (taskId: string): Promise<TaskModel> => {
-        return taskRepository.update(taskId, {
+        const task = await taskRepository.update(taskId, {
             status: "DONE",
             completed_at: new Date(),
             last_activity_at: new Date(),
         });
+        logger.info({ taskId }, "task marked done");
+        return task;
     },
 
     markTaskDeleted: async (taskId: string): Promise<TaskModel> => {
-        return taskRepository.update(taskId, {
+        const task = await taskRepository.update(taskId, {
             status: "DELETED",
             last_activity_at: new Date(),
         });
+        logger.info({ taskId }, "task marked deleted");
+        return task;
     },
 };

@@ -1,6 +1,7 @@
 import { userRepository } from "#root/repositories/user.repository.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { TaskModel, UserModel } from "#root/types/models.js";
+import { logger } from "#root/logger.js";
 
 export type SaturdayBriefType = "regular" | "monthly" | "quarterly";
 
@@ -92,6 +93,7 @@ export const saturdayBriefService = {
             ? await taskRepository.findArchivedBeforeQuarter(userId, getStartOfQuarter())
             : [];
 
+        logger.debug({ userId: String(userId), type }, "saturday brief data built");
         return {
             user,
             type,
@@ -104,13 +106,16 @@ export const saturdayBriefService = {
 
     freezeStaleTask: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "FROZEN", frozen_at: new Date() });
+        logger.info({ taskId }, "task frozen");
     },
 
     archiveFrozenTask: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "ARCHIVED", archived_at: new Date() });
+        logger.info({ taskId }, "task archived");
     },
 
     deleteArchivedTasks: async (ids: string[]): Promise<void> => {
         await taskRepository.deleteMany(ids);
+        logger.info({ count: ids.length }, "archived tasks deleted");
     },
 };

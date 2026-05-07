@@ -1,6 +1,7 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { morningBriefService } from "#root/services/brief/morning.service.js";
+import { logger } from "#root/logger.js";
 import { TaskModel } from "#root/types/models.js";
 import { startEloSession } from "#root/bot/handlers/elo/elo.handler.js";
 import { formatTimeHHmm, formatMinutes } from "#root/utils/time.js";
@@ -9,6 +10,7 @@ import {
     MORNING_BRIEF_CALLBACKS,
     MORNING_BRIEF_PATTERNS,
     MORNING_BRIEF_SCENES,
+    MORNING_BRIEF_EVENTS,
     ELO_PAIR_COUNT,
 } from "./const.js";
 import { FREE_TIME_PRESETS, CATEGORY_LABELS, DURATION_LABELS } from "#root/types/brief.js";
@@ -62,6 +64,7 @@ const sendNextCandidate = async (ctx: BotContext, candidates: TaskModel[], idx: 
 };
 
 const sendFinalPlan = async (ctx: BotContext) => {
+    logger.info({ userId: ctx.from!.id }, "morning brief: final plan sent");
     const brief = ctx.session.brief ?? {};
     const freeMinutes = brief.freeMinutes ?? 0;
     const mandatoryMinutes = brief.mandatoryMinutes ?? 0;
@@ -130,6 +133,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(MORNING_BRIEF_PATTERNS.HOURS, async (ctx) => {
         await ctx.answerCallbackQuery();
         const value = ctx.match[1];
+        logger.debug({ userId: ctx.from!.id, value }, "morning brief: hours selected");
 
         if (ctx.callbackQuery.data === MORNING_BRIEF_CALLBACKS.HOURS_CUSTOM) {
             ctx.session.scene = MORNING_BRIEF_SCENES.AWAITING_CUSTOM_HOURS;
@@ -146,6 +150,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(MORNING_BRIEF_PATTERNS.ADD, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
+        logger.info({ userId: ctx.from!.id, taskId }, "morning brief: task added to plan");
         const brief = ctx.session.brief ?? {};
         const plannedTaskIds = [...(brief.plannedTaskIds ?? []), taskId];
 
@@ -197,7 +202,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         await sendFinalPlan(ctx);
     });
 
-    bot.on(MORNING_BRIEF_TEXTS.MESSAGE_TEXT_EVENT, async (ctx, next) => {
+    bot.on(MORNING_BRIEF_EVENTS.MESSAGE_TEXT, async (ctx, next) => {
         if (ctx.session.scene !== MORNING_BRIEF_SCENES.AWAITING_CUSTOM_HOURS) return next();
 
         const raw = ctx.message.text.trim().replace(",", ".");

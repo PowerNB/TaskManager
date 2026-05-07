@@ -20,6 +20,9 @@ export const formatTimeUTCHHmm = (date: Date): string => {
 export const isValidTime = (value: string): boolean =>
     isValid(parse(value, "HH:mm", new Date())) && /^\d{2}:\d{2}$/.test(value);
 
+export const isValidTimezone = (value: string): boolean =>
+    /^[+-](?:1[0-4]|[0-9])$/.test(value);
+
 export const parseDateString = (value: string): Date | null => {
     if (/^\d{2}\.\d{2}$/.test(value)) {
         const parsed = parse(value, "dd.MM", new Date());

@@ -1,6 +1,7 @@
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { TaskModel } from "#root/types/models.js";
 import { calcElo } from "#root/utils/elo.js";
+import { logger } from "#root/logger.js";
 
 const shufflePairs = (tasks: TaskModel[]): Array<[TaskModel, TaskModel]> => {
     const shuffled = [...tasks].sort(() => Math.random() - 0.5);
@@ -31,5 +32,6 @@ export const eloService = {
             taskRepository.update(winnerId, { elo_score: newA }),
             taskRepository.update(loserId, { elo_score: newB }),
         ]);
+        logger.info({ winnerId, loserId, newWinnerScore: newA, newLoserScore: newB }, "elo scores updated");
     },
 };

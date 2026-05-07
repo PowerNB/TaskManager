@@ -2,6 +2,7 @@ import { Api, Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { eloService } from "#root/services/elo.service.js";
 import { ELO_TEXTS, ELO_BUTTONS, ELO_CALLBACKS, ELO_PATTERNS } from "./const.js";
+import { logger } from "#root/logger.js";
 
 const buildKeyboard = (idA: string, idB: string, current: number, total: number): InlineKeyboard =>
     new InlineKeyboard()
@@ -37,6 +38,7 @@ const sendPair = async (
 
 export const startEloSession = async (ctx: BotContext, pairCount: number): Promise<void> => {
     const userId = BigInt(ctx.from!.id);
+    logger.debug({ userId: ctx.from!.id, pairCount }, "elo session started");
     await sendPair(userId, 0, pairCount, (text, keyboard) =>
         ctx.reply(text, { reply_markup: keyboard }),
     );
@@ -63,6 +65,7 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
         const current = parseInt(ctx.match[3], 10);
         const total = parseInt(ctx.match[4], 10);
 
+        logger.info({ userId: ctx.from.id, winnerId, loserId, current, total }, "elo: pair picked");
         await eloService.applyResult(winnerId, loserId);
 
         const userId = BigInt(ctx.from.id);
@@ -77,6 +80,7 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
 
         const current = parseInt(ctx.match[1], 10);
         const total = parseInt(ctx.match[2], 10);
+        logger.info({ userId: ctx.from.id, current, total }, "elo: pair skipped");
         const userId = BigInt(ctx.from.id);
 
         await sendPair(userId, current + 1, total, (text, keyboard) =>

@@ -2,6 +2,7 @@ import { taskRepository } from "#root/repositories/task.repository.js";
 import { userRepository } from "#root/repositories/user.repository.js";
 import { canSend, getNowTime } from "#root/utils/time.js";
 import { TaskModel } from "#root/types/models.js";
+import { logger } from "#root/logger.js";
 
 export interface DelegationNotification {
     task: TaskModel;
@@ -31,6 +32,7 @@ export const notificationService = {
             result.push({ task, userId: task.userId, canSendNow });
         }
 
+        logger.debug({ count: result.length }, "due delegations fetched");
         return result;
     },
 
@@ -48,6 +50,7 @@ export const notificationService = {
             result.push({ task, userId: task.userId, canSendNow });
         }
 
+        logger.debug({ count: result.length }, "due date deadlines fetched");
         return result;
     },
 
@@ -67,20 +70,24 @@ export const notificationService = {
             result.push({ task, userId: task.userId, canSendNow: true });
         }
 
+        logger.debug({ count: result.length }, "due time deadlines fetched");
         return result;
     },
 
     snoozeDelegation: async (taskId: string): Promise<void> => {
         const remindAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
         await taskRepository.update(taskId, { remind_delegation_at: remindAt });
+        logger.info({ taskId }, "delegation snoozed");
     },
 
     markDone: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
+        logger.info({ taskId }, "notification: task marked done");
     },
 
     markDeleted: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "DELETED" });
+        logger.info({ taskId }, "notification: task marked deleted");
     },
 
     takeBack: async (taskId: string): Promise<void> => {
@@ -90,9 +97,11 @@ export const notificationService = {
             remind_delegation_at: null,
             last_activity_at: new Date(),
         });
+        logger.info({ taskId }, "task taken back from delegation");
     },
 
     reschedule: async (taskId: string, date: Date): Promise<void> => {
         await taskRepository.update(taskId, { due_date: date, last_activity_at: new Date() });
+        logger.info({ taskId }, "task rescheduled");
     },
 };
