@@ -84,6 +84,16 @@ export const isTimeInQuietHours = (time: string, from: string, to: string): bool
     return nowMinutes >= fromMinutes && nowMinutes < toMinutes_;
 };
 
+export const getWeekBounds = (): { weekStart: Date; weekEnd: Date } => {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    return { weekStart, weekEnd };
+};
+
 export const formatMinutes = (minutes: number): string => {
     if (minutes < 60) return `${minutes} мин`;
     const h = Math.floor(minutes / 60);

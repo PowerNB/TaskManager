@@ -3,11 +3,12 @@ import { BotContext, CaptureDraft } from "#root/types/context.js";
 import { captureService } from "#root/services/capture.service.js";
 import { settingsService } from "#root/services/settings.service.js";
 import { logger } from "#root/logger.js";
-import { isValidTime, parseDateString, formatDate, formatTimeUTCHHmm, resolveDatePreset, formatIsoDateShort, isTimeAffectedByQuietHours, parseTimezoneOffset } from "#root/utils/time.js";
+import { isValidTime, parseDateString, formatDate, formatTimeUTCHHmm, resolveDatePreset, formatIsoDateShort, isTimeAffectedByQuietHours, parseTimezoneOffset, getWeekBounds } from "#root/utils/time.js";
 import { pushScene, popScene, clearHistory } from "#root/bot/utils/scene.js";
 import { sendMainMenu } from "#root/bot/handlers/menu/menu.js";
 import { sendTaskMessage, buildTaskTags } from "#root/bot/handlers/task-message/task-message.js";
 import { Category, DurationTag } from "#root/types/enums.js";
+import { TaskModel } from "#root/types/models.js";
 import {
     CAPTURE_TEXTS,
     CAPTURE_BUTTONS,
@@ -15,6 +16,11 @@ import {
     CAPTURE_CALLBACKS,
     CAPTURE_PATTERNS,
     GLOBAL_CALLBACKS,
+    INBOX_CALLBACKS,
+    INBOX_PATTERNS,
+    INBOX_TEXTS,
+    INBOX_BUTTONS,
+    formatDayLabel,
     PARSE_MODE,
     QUIET_WARNING_ACTIONS,
     MEDIA_TYPES,
@@ -23,7 +29,6 @@ import {
     DURATION_OPTIONS,
     DATE_PRESETS,
     TITLE_MAX_LENGTH,
-    SEPARATOR,
     CAPTURE_TIMEOUT_MS,
 } from "./const.js";
 import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/labels.js";
@@ -178,6 +183,52 @@ const saveTask = async (ctx: BotContext) => {
     await sendConfirmation(ctx);
 };
 
+const buildInboxMenuKeyboard = (): InlineKeyboard =>
+    new InlineKeyboard()
+        .text(INBOX_BUTTONS.TODAY, INBOX_CALLBACKS.SHOW_TODAY).row()
+        .text(INBOX_BUTTONS.WEEK, INBOX_CALLBACKS.SHOW_WEEK).row()
+        .text(INBOX_BUTTONS.NO_DATE, INBOX_CALLBACKS.SHOW_NO_DATE).row()
+        .text(INBOX_BUTTONS.ALL, INBOX_CALLBACKS.SHOW_ALL);
+
+const sendInboxMenu = async (ctx: BotContext): Promise<void> => {
+    await ctx.reply(INBOX_TEXTS.MENU_PROMPT, { reply_markup: buildInboxMenuKeyboard() });
+};
+
+const sendTaskList = async (
+    ctx: BotContext,
+    userId: bigint,
+    tasks: TaskModel[],
+    footer: string,
+): Promise<void> => {
+    if (tasks.length === 0) {
+        await ctx.reply(footer, {
+            reply_markup: new InlineKeyboard().text(INBOX_BUTTONS.BACK_TO_INBOX, CAPTURE_CALLBACKS.INBOX),
+        });
+        return;
+    }
+    await ctx.reply(CAPTURE_TEXTS.INBOX_HEADER(tasks.length));
+    for (const task of tasks) {
+        const keyboard = new InlineKeyboard()
+            .text(CAPTURE_BUTTONS.TASK_DONE, CAPTURE_CALLBACKS.INBOX_DONE(task.id))
+            .text(CAPTURE_BUTTONS.TASK_EDIT, CAPTURE_CALLBACKS.INBOX_EDIT(task.id))
+            .row()
+            .text(CAPTURE_BUTTONS.TASK_DELETE, CAPTURE_CALLBACKS.INBOX_DELETE(task.id));
+        await sendTaskMessage(ctx.api, Number(userId), task, keyboard);
+    }
+    await ctx.reply(footer, {
+        reply_markup: new InlineKeyboard().text(INBOX_BUTTONS.BACK_TO_INBOX, CAPTURE_CALLBACKS.INBOX),
+    });
+};
+
+const sendInboxForDate = async (ctx: BotContext, date: Date, userId: bigint): Promise<void> => {
+    const tasks = await captureService.getTasksByDate(userId, date);
+    await sendTaskList(ctx, userId, tasks,
+        tasks.length === 0
+            ? INBOX_TEXTS.NO_TASKS_DATE(formatDayLabel(date))
+            : INBOX_TEXTS.FOOTER_DATE(formatDayLabel(date)),
+    );
+};
+
 export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.command("add", async (ctx) => {
         logger.debug({ userId: ctx.from!.id }, "command /add");
@@ -193,33 +244,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.command("inbox", async (ctx) => {
         logger.debug({ userId: ctx.from!.id }, "command /inbox");
-        const userId = BigInt(ctx.from!.id);
-        const tasks = await captureService.getActiveTasks(userId);
-
-        if (tasks.length === 0) {
-            await ctx.reply(CAPTURE_TEXTS.INBOX_EMPTY, {
-                reply_markup: new InlineKeyboard()
-                    .text(CAPTURE_TEXTS.INBOX_ADD_TASK, GLOBAL_CALLBACKS.ADD_TASK)
-                    .row()
-                    .text(CAPTURE_BUTTONS.MAIN_MENU, GLOBAL_CALLBACKS.MENU_HOME),
-            });
-            return;
-        }
-
-        await ctx.reply(CAPTURE_TEXTS.INBOX_HEADER(tasks.length));
-
-        for (const task of tasks) {
-            const keyboard = new InlineKeyboard()
-                .text(CAPTURE_BUTTONS.TASK_DONE, CAPTURE_CALLBACKS.INBOX_DONE(task.id))
-                .text(CAPTURE_BUTTONS.TASK_EDIT, CAPTURE_CALLBACKS.INBOX_EDIT(task.id))
-                .row()
-                .text(CAPTURE_BUTTONS.TASK_DELETE, CAPTURE_CALLBACKS.INBOX_DELETE(task.id));
-            await sendTaskMessage(ctx.api, ctx.from!.id, task, keyboard);
-        }
-
-        await ctx.reply(SEPARATOR, {
-            reply_markup: new InlineKeyboard().text(CAPTURE_BUTTONS.MAIN_MENU, GLOBAL_CALLBACKS.MENU_HOME),
-        });
+        await sendInboxMenu(ctx);
     });
 
     bot.callbackQuery(GLOBAL_CALLBACKS.ADD_TASK, async (ctx) => {
@@ -240,33 +265,56 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_CALLBACKS.INBOX, async (ctx) => {
         await ctx.answerCallbackQuery();
+        logger.debug({ userId: ctx.from.id }, "inbox: open menu");
+        await sendInboxMenu(ctx);
+    });
+
+    bot.callbackQuery(INBOX_CALLBACKS.SHOW_TODAY, async (ctx) => {
+        await ctx.answerCallbackQuery();
         const userId = BigInt(ctx.from.id);
+        logger.debug({ userId: ctx.from.id }, "inbox: show today");
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        await sendInboxForDate(ctx, today, userId);
+    });
+
+    bot.callbackQuery(INBOX_CALLBACKS.SHOW_WEEK, async (ctx) => {
+        await ctx.answerCallbackQuery();
+        const userId = BigInt(ctx.from.id);
+        logger.debug({ userId: ctx.from.id }, "inbox: show week");
+        const { weekStart, weekEnd } = getWeekBounds();
+        const tasks = await captureService.getWeekTasks(userId, weekStart, weekEnd);
+        await sendTaskList(ctx, userId, tasks,
+            tasks.length === 0 ? INBOX_TEXTS.NO_TASKS_WEEK : INBOX_TEXTS.FOOTER_WEEK,
+        );
+    });
+
+    bot.callbackQuery(INBOX_CALLBACKS.SHOW_NO_DATE, async (ctx) => {
+        await ctx.answerCallbackQuery();
+        const userId = BigInt(ctx.from.id);
+        logger.debug({ userId: ctx.from.id }, "inbox: show no-date tasks");
+        const tasks = await captureService.getNoDateTasks(userId);
+        await sendTaskList(ctx, userId, tasks,
+            tasks.length === 0 ? INBOX_TEXTS.NO_TASKS_NO_DATE : INBOX_TEXTS.FOOTER_NO_DATE,
+        );
+    });
+
+    bot.callbackQuery(INBOX_CALLBACKS.SHOW_ALL, async (ctx) => {
+        await ctx.answerCallbackQuery();
+        const userId = BigInt(ctx.from.id);
+        logger.debug({ userId: ctx.from.id }, "inbox: show all tasks");
         const tasks = await captureService.getActiveTasks(userId);
+        await sendTaskList(ctx, userId, tasks,
+            tasks.length === 0 ? INBOX_TEXTS.NO_TASKS_ALL : INBOX_TEXTS.FOOTER_ALL,
+        );
+    });
 
-        if (tasks.length === 0) {
-            await ctx.reply(CAPTURE_TEXTS.INBOX_EMPTY, {
-                reply_markup: new InlineKeyboard()
-                    .text(CAPTURE_TEXTS.INBOX_ADD_TASK, GLOBAL_CALLBACKS.ADD_TASK)
-                    .row()
-                    .text(CAPTURE_BUTTONS.MAIN_MENU, GLOBAL_CALLBACKS.MENU_HOME),
-            });
-            return;
-        }
-
-        await ctx.reply(CAPTURE_TEXTS.INBOX_HEADER(tasks.length));
-
-        for (const task of tasks) {
-            const keyboard = new InlineKeyboard()
-                .text(CAPTURE_BUTTONS.TASK_DONE, CAPTURE_CALLBACKS.INBOX_DONE(task.id))
-                .text(CAPTURE_BUTTONS.TASK_EDIT, CAPTURE_CALLBACKS.INBOX_EDIT(task.id))
-                .row()
-                .text(CAPTURE_BUTTONS.TASK_DELETE, CAPTURE_CALLBACKS.INBOX_DELETE(task.id));
-            await sendTaskMessage(ctx.api, ctx.from!.id, task, keyboard);
-        }
-
-        await ctx.reply(SEPARATOR, {
-            reply_markup: new InlineKeyboard().text(CAPTURE_BUTTONS.MAIN_MENU, GLOBAL_CALLBACKS.MENU_HOME),
-        });
+    bot.callbackQuery(INBOX_PATTERNS.DATE, async (ctx) => {
+        await ctx.answerCallbackQuery();
+        const iso = ctx.match[1];
+        logger.debug({ userId: ctx.from.id, date: iso }, "inbox: filter by date");
+        const date = new Date(iso);
+        await sendInboxForDate(ctx, date, BigInt(ctx.from.id));
     });
 
     bot.callbackQuery(CAPTURE_PATTERNS.INBOX_DONE, async (ctx) => {

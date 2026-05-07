@@ -121,6 +121,55 @@ export const GLOBAL_CALLBACKS = {
     INBOX: "inbox",
 } as const;
 
+export const INBOX_CALLBACKS = {
+    SHOW_DATE: (iso: string) => `inbox:date:${iso}`,
+    SHOW_TODAY: "inbox:show:today",
+    SHOW_WEEK: "inbox:show:week",
+    SHOW_NO_DATE: "inbox:show:nodate",
+    SHOW_ALL: "inbox:show:all",
+} as const;
+
+export const INBOX_PATTERNS = {
+    DATE: /^inbox:date:(.+)$/,
+} as const;
+
+export const INBOX_TEXTS = {
+    MENU_PROMPT: "📥 Инбокс — что показать?",
+    FOOTER_DATE: (dateLabel: string) => `Показываются задачи на ${dateLabel}`,
+    FOOTER_WEEK: "Показываются задачи на эту неделю",
+    FOOTER_NO_DATE: "Показываются задачи без даты",
+    FOOTER_ALL: "Показываются все активные задачи",
+    NO_TASKS_TODAY: "На сегодня задач нет.",
+    NO_TASKS_DATE: (label: string) => `На ${label} задач нет.`,
+    NO_TASKS_WEEK: "На этой неделе задач нет.",
+    NO_TASKS_NO_DATE: "Задач без даты нет.",
+    NO_TASKS_ALL: "Активных задач нет.",
+} as const;
+
+export const INBOX_BUTTONS = {
+    TODAY: "📅 Задачи на сегодня",
+    WEEK: "🗓 Задачи на эту неделю",
+    NO_DATE: "📋 Задачи без даты",
+    ALL: "📂 Все задачи",
+    BACK_TO_INBOX: "◀ Назад",
+} as const;
+
+const WEEKDAYS_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"] as const;
+
+export const formatDayButton = (date: Date): string => {
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const wd = WEEKDAYS_RU[date.getUTCDay()];
+    return `${wd} ${day}.${month}`;
+};
+
+export const formatDayLabel = (date: Date): string => {
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const wd = WEEKDAYS_RU[date.getUTCDay()];
+    return `${wd} ${day}.${month}`;
+};
+
 export const PARSE_MODE = {
     HTML: "HTML" as const,
 };

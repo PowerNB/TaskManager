@@ -55,6 +55,34 @@ export const captureService = {
         return taskRepository.findActiveByUser(userId);
     },
 
+    getTasksByDate: async (userId: bigint, date: Date): Promise<TaskModel[]> => {
+        logger.debug({ userId: String(userId), date }, "inbox: loading tasks for date");
+        const tasks = await taskRepository.findActiveByUserAndDate(userId, date);
+        logger.debug({ userId: String(userId), count: tasks.length }, "inbox: tasks for date loaded");
+        return tasks;
+    },
+
+    getActiveDatesForWeek: async (userId: bigint, weekStart: Date, weekEnd: Date): Promise<Date[]> => {
+        logger.debug({ userId: String(userId), weekStart, weekEnd }, "inbox: loading active dates for week");
+        const dates = await taskRepository.findActiveDatesForWeek(userId, weekStart, weekEnd);
+        logger.debug({ userId: String(userId), count: dates.length }, "inbox: active dates for week loaded");
+        return dates;
+    },
+
+    getWeekTasks: async (userId: bigint, weekStart: Date, weekEnd: Date): Promise<TaskModel[]> => {
+        logger.debug({ userId: String(userId), weekStart, weekEnd }, "inbox: loading week tasks");
+        const tasks = await taskRepository.findActiveByUserInRange(userId, weekStart, weekEnd);
+        logger.debug({ userId: String(userId), count: tasks.length }, "inbox: week tasks loaded");
+        return tasks;
+    },
+
+    getNoDateTasks: async (userId: bigint): Promise<TaskModel[]> => {
+        logger.debug({ userId: String(userId) }, "inbox: loading no-date tasks");
+        const tasks = await taskRepository.findActiveNoDate(userId);
+        logger.debug({ userId: String(userId), count: tasks.length }, "inbox: no-date tasks loaded");
+        return tasks;
+    },
+
     getTaskById: async (taskId: string): Promise<TaskModel | null> => {
         return taskRepository.findById(taskId);
     },

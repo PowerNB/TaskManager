@@ -17,6 +17,38 @@ class TaskRepository extends Repository {
         });
     }
 
+    findActiveByUserAndDate(userId: bigint, date: Date): Promise<TaskModel[]> {
+        logger.debug({ userId, date }, TASK_REPOSITORY_LOGS.FIND_ACTIVE_BY_USER_AND_DATE);
+        return this.client.task.findMany({
+            where: {
+                userId,
+                status: TASK_STATUS.ACTIVE,
+                due_date: { gte: startOfDay(date), lte: endOfDay(date) },
+            },
+            orderBy: [{ due_time: "asc" }, { elo_score: "desc" }],
+        });
+    }
+
+    async findActiveDatesForWeek(userId: bigint, weekStart: Date, weekEnd: Date): Promise<Date[]> {
+        logger.debug({ userId, weekStart, weekEnd }, TASK_REPOSITORY_LOGS.FIND_ACTIVE_DATES_FOR_WEEK);
+        const tasks = await this.client.task.findMany({
+            where: {
+                userId,
+                status: TASK_STATUS.ACTIVE,
+                due_date: { gte: startOfDay(weekStart), lte: endOfDay(weekEnd) },
+            },
+            select: { due_date: true },
+        });
+        const unique = new Map<string, Date>();
+        for (const t of tasks) {
+            if (t.due_date) {
+                const key = t.due_date.toISOString().slice(0, 10);
+                if (!unique.has(key)) unique.set(key, t.due_date);
+            }
+        }
+        return [...unique.values()].sort((a, b) => a.getTime() - b.getTime());
+    }
+
     create(data: TaskCreateInput): Promise<TaskModel> {
         logger.debug({ data }, TASK_REPOSITORY_LOGS.CREATE);
         return this.client.task.create({ data });
@@ -80,6 +112,54 @@ class TaskRepository extends Repository {
                 due_date: { gte: startOfDay(), lte: endOfDay() },
             },
             orderBy: { due_time: "asc" },
+        });
+    }
+
+    findTodayTasksForElo(userId: bigint): Promise<TaskModel[]> {
+        logger.debug({ userId }, TASK_REPOSITORY_LOGS.FIND_TODAY_TASKS_FOR_ELO);
+        return this.client.task.findMany({
+            where: {
+                userId,
+                status: TASK_STATUS.ACTIVE,
+                due_date: { gte: startOfDay(), lte: endOfDay() },
+                due_time: null,
+            },
+        });
+    }
+
+    findWeekTasksForElo(userId: bigint, weekStart: Date, weekEnd: Date): Promise<TaskModel[]> {
+        logger.debug({ userId }, TASK_REPOSITORY_LOGS.FIND_WEEK_TASKS_FOR_ELO);
+        return this.client.task.findMany({
+            where: {
+                userId,
+                status: TASK_STATUS.ACTIVE,
+                due_date: { gte: startOfDay(weekStart), lte: endOfDay(weekEnd) },
+            },
+        });
+    }
+
+    findActiveByUserInRange(userId: bigint, from: Date, to: Date): Promise<TaskModel[]> {
+        logger.debug({ userId, from, to }, TASK_REPOSITORY_LOGS.FIND_ACTIVE_BY_USER_IN_RANGE);
+        return this.client.task.findMany({
+            where: {
+                userId,
+                status: TASK_STATUS.ACTIVE,
+                due_date: { gte: startOfDay(from), lte: endOfDay(to) },
+            },
+            orderBy: [{ due_date: "asc" }, { due_time: "asc" }, { elo_score: "desc" }],
+        });
+    }
+
+    findActiveNoDate(userId: bigint): Promise<TaskModel[]> {
+        logger.debug({ userId }, TASK_REPOSITORY_LOGS.FIND_ACTIVE_NO_DATE);
+        return this.client.task.findMany({
+            where: {
+                userId,
+                status: TASK_STATUS.ACTIVE,
+                due_date: null,
+                due_time: null,
+            },
+            orderBy: { elo_score: "desc" },
         });
     }
 
