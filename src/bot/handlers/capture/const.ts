@@ -1,7 +1,12 @@
+export const TITLE_MAX_LENGTH = 200;
+
+export const SEPARATOR = "—";
+
 export const CAPTURE_TEXTS = {
     TITLE_PROMPT: "Что нужно сделать?",
     TITLE_EMPTY: "Введи название задачи.",
     TITLE_TOO_LONG: "Слишком длинно, попробуй короче.",
+    TITLE_EDIT_PROMPT: (current: string) => `Текущее: "${current}"\n\nВведи новое название (или отправь с аттачментом).`,
     CATEGORY_PROMPT: "К чему относится?",
     DURATION_PROMPT: "Сколько времени займёт?",
     OPTIONS_PROMPT: "Добавить что-нибудь ещё?",
@@ -17,6 +22,100 @@ export const CAPTURE_TEXTS = {
     CONFIRMED: "✅ Задача сохранена",
     ADD_MORE: "+ Добавить ещё",
     OPEN_INBOX: "📥 Открыть инбокс",
+    INBOX_EMPTY: "📥 Инбокс пуст. Добавь первую задачу!",
+    INBOX_HEADER: (count: number) => `📥 Инбокс — ${count} задач`,
+    INBOX_ADD_TASK: "+ Добавить задачу",
+    TASK_DELETED: "🗑 Задача удалена",
+} as const;
+
+export const CAPTURE_BUTTONS = {
+    BACK: "◀ Назад",
+    DONE: "✅ Готово",
+    TITLE_EDIT: "✏️ Название",
+    DATE_PLACEHOLDER: "📅 Дату",
+    TIME_PLACEHOLDER: "⏰ Время",
+    DELEGATE_PLACEHOLDER: "👤 Делегировать",
+    CATEGORY_PLACEHOLDER: "📂 Категория",
+    MAIN_MENU: "🏠 Главное меню",
+    TASK_DONE: "✅ Выполнено",
+    TASK_EDIT: "✏️ Изменить",
+    TASK_DELETE: "🗑 Удалить",
+    QUIET_SAVE: "Да, сохранить",
+    QUIET_CHANGE: "Изменить время",
+} as const;
+
+export const CAPTURE_SCENES = {
+    AWAITING_TITLE: "capture:awaiting_title",
+    AWAITING_CATEGORY: "capture:awaiting_category",
+    AWAITING_DURATION: "capture:awaiting_duration",
+    AWAITING_OPTIONS: "capture:awaiting_options",
+    AWAITING_DATE: "capture:awaiting_date",
+    AWAITING_TIME: "capture:awaiting_time",
+    AWAITING_DELEGATE: "capture:awaiting_delegate",
+    EDIT_TITLE: "capture:edit_title",
+} as const;
+
+export const CAPTURE_CALLBACKS = {
+    BACK: "capture:back",
+    ADD_MORE: "capture:add_more",
+    INBOX: "capture:inbox",
+    OPTION_DATE: "capture:option:date",
+    OPTION_TIME: "capture:option:time",
+    OPTION_DELEGATE: "capture:option:delegate",
+    OPTION_DONE: "capture:option:done",
+    OPTION_CATEGORY: "capture:option:category",
+    OPTION_CATEGORY_VALUE: (value: string) => `capture:option:category:${value}`,
+    CATEGORY_VALUE: (value: string) => `capture:category:${value}`,
+    DURATION_VALUE: (value: string) => `capture:duration:${value}`,
+    OPTION_TITLE: "capture:option:title",
+    DATE_PREFIX: "capture:date",
+    DATE_VALUE: (value: string) => `capture:date:${value}`,
+    QUIET_SAVE: "capture:quiet_warning:save",
+    QUIET_CHANGE: "capture:quiet_warning:change",
+    INBOX_DONE: (id: string) => `inbox:done:${id}`,
+    INBOX_EDIT: (id: string) => `inbox:edit:${id}`,
+    INBOX_DELETE: (id: string) => `inbox:delete:${id}`,
+} as const;
+
+export const MEDIA_TYPES = {
+    PHOTO: "photo",
+    VIDEO: "video",
+    DOCUMENT: "document",
+    AUDIO: "audio",
+    VOICE: "voice",
+} as const;
+
+export const MEDIA_EVENTS = {
+    PHOTO: "message:photo",
+    VIDEO: "message:video",
+    DOCUMENT: "message:document",
+    AUDIO: "message:audio",
+    VOICE: "message:voice",
+} as const;
+
+export const CAPTURE_PATTERNS = {
+    OPTION_CATEGORY: /^capture:option:category:(.+)$/,
+    CATEGORY: /^capture:category:(.+)$/,
+    DURATION: /^capture:duration:(.+)$/,
+    DATE: /^capture:date:(.+)$/,
+    QUIET_WARNING: /^capture:quiet_warning:(.+)$/,
+    INBOX_DONE: /^inbox:done:(.+)$/,
+    INBOX_EDIT: /^inbox:edit:(.+)$/,
+    INBOX_DELETE: /^inbox:delete:(.+)$/,
+} as const;
+
+export const GLOBAL_CALLBACKS = {
+    ADD_TASK: "add_task",
+    MENU_HOME: "menu:home",
+    INBOX: "inbox",
+} as const;
+
+export const PARSE_MODE = {
+    HTML: "HTML" as const,
+};
+
+export const QUIET_WARNING_ACTIONS = {
+    SAVE: "save",
 } as const;
 
 export const CATEGORY_OPTIONS = {
@@ -32,10 +131,12 @@ export const DURATION_OPTIONS = {
     PROJECT: { label: "📁 Проект", value: "PROJECT" },
 } as const;
 
+import { DATE_PRESET_VALUES } from "#root/utils/time.js";
+
 export const DATE_PRESETS = {
-    TODAY: { label: "Сегодня", value: "today" },
-    TOMORROW: { label: "Завтра", value: "tomorrow" },
-    IN_3_DAYS: { label: "Через 3 дня", value: "in_3_days" },
+    TODAY: { label: "Сегодня", value: DATE_PRESET_VALUES.TODAY },
+    TOMORROW: { label: "Завтра", value: DATE_PRESET_VALUES.TOMORROW },
+    IN_3_DAYS: { label: "Через 3 дня", value: DATE_PRESET_VALUES.IN_3_DAYS },
     CUSTOM: { label: "Указать дату", value: "custom" },
 } as const;
 

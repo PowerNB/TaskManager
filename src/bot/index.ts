@@ -8,8 +8,8 @@ import { registerCaptureHandler } from "#root/bot/handlers/capture/capture.handl
 import { registerNotificationsHandler } from "#root/bot/handlers/notifications/notifications.handler.js";
 import { registerMorningBriefHandler } from "#root/bot/handlers/morning-brief/morning-brief.handler.js";
 import { registerSaturdayBriefHandler } from "#root/bot/handlers/saturday-brief/saturday-brief.handler.js";
-import { registerSettingsHandler } from "#root/bot/handlers/settings.handler.js";
-import { registerEloHandler } from "#root/bot/handlers/elo.handler.js";
+import { registerSettingsHandler } from "#root/bot/handlers/settings/settings.handler.js";
+import { registerEloHandler } from "#root/bot/handlers/elo/elo.handler.js";
 
 export const bot = new Bot<BotContext>(config.BOT_TOKEN);
 

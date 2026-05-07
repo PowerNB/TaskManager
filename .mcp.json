@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "type": "stdio",
+      "command": "code-review-graph",
+      "args": [
+        "serve"
+      ]
+    },
+    "gitnexus": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "gitnexus@1.6.4-rc.80",
+        "mcp"
+      ],
+      "env": {}
+    }
+  }
+}

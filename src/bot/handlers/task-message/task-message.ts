@@ -1,18 +1,8 @@
 import { Api, InlineKeyboard } from "grammy";
 import { TaskModel } from "#root/types/models.js";
-
-const CATEGORY_LABELS: Record<string, string> = {
-    CAREER: "💼 Карьера",
-    PERSONAL: "🎯 Личное",
-};
-
-const DURATION_LABELS: Record<string, string> = {
-    MIN_5: "⚡ 5 мин",
-    MIN_30: "🕐 30 мин",
-    HOUR_1: "🕑 1 час",
-    HOUR_2: "🕒 2 часа",
-    PROJECT: "📁 Проект",
-};
+import { CATEGORY_LABELS, DURATION_LABELS } from "#root/types/brief.js";
+import { formatTimeUTCHHmm } from "#root/utils/time.js";
+import { TASK_MESSAGE_FORMATS } from "./const.js";
 
 export const buildTaskTags = (task: TaskModel): string => {
     const tags: string[] = [];
@@ -20,13 +10,12 @@ export const buildTaskTags = (task: TaskModel): string => {
     tags.push(DURATION_LABELS[task.duration_tag] ?? task.duration_tag);
     if (task.due_date) {
         const d = task.due_date;
-        tags.push(`📅 ${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+        tags.push(TASK_MESSAGE_FORMATS.DATE_TAG(day, month));
     }
-    if (task.due_time) {
-        const t = task.due_time;
-        tags.push(`⏰ ${String(t.getUTCHours()).padStart(2, "0")}:${String(t.getUTCMinutes()).padStart(2, "0")}`);
-    }
-    if (task.delegated_to) tags.push(`👤 ${task.delegated_to}`);
+    if (task.due_time) tags.push(TASK_MESSAGE_FORMATS.TIME_TAG(formatTimeUTCHHmm(task.due_time)));
+    if (task.delegated_to) tags.push(TASK_MESSAGE_FORMATS.DELEGATE_TAG(task.delegated_to));
     return tags.join(" ");
 };
 
@@ -36,7 +25,7 @@ export const sendTaskMessage = async (
     task: TaskModel,
     keyboard?: InlineKeyboard,
 ): Promise<void> => {
-    const caption = `<b>${task.title}</b>\n<i>${buildTaskTags(task)}</i>`;
+    const caption = TASK_MESSAGE_FORMATS.CAPTION(task.title, buildTaskTags(task));
     const options = keyboard ? { reply_markup: keyboard, parse_mode: "HTML" as const } : { parse_mode: "HTML" as const };
 
     if (task.attachment_file_id && task.attachment_type) {

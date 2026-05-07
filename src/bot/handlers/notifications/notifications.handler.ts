@@ -1,142 +1,107 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { notificationService } from "#root/services/notification.service.js";
+import { formatDateDisplay, parseDateString, resolveDatePreset } from "#root/utils/time.js";
+import {
+    NOTIF_TEXTS,
+    NOTIF_BUTTONS,
+    NOTIF_CALLBACKS,
+    NOTIF_PATTERNS,
+    NOTIF_SCENES,
+    NOTIF_PRESET_VALUES,
+} from "./const.js";
 
 export const registerNotificationsHandler = (bot: Bot<BotContext>) => {
-    // Delegation: mark done
-    bot.callbackQuery(/^notif:delegation:done:(.+)$/, async (ctx) => {
+    bot.callbackQuery(NOTIF_PATTERNS.DELEGATION_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await notificationService.markDone(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("✅ Задача завершена.");
+        await ctx.reply(NOTIF_TEXTS.TASK_DONE);
     });
 
-    // Delegation: snooze 3 days
-    bot.callbackQuery(/^notif:delegation:snooze:(.+)$/, async (ctx) => {
+    bot.callbackQuery(NOTIF_PATTERNS.DELEGATION_SNOOZE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await notificationService.snoozeDelegation(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("⏳ Напомню через 3 дня.");
+        await ctx.reply(NOTIF_TEXTS.DELEGATION_SNOOZED);
     });
 
-    // Delegation: take back
-    bot.callbackQuery(/^notif:delegation:take_back:(.+)$/, async (ctx) => {
+    bot.callbackQuery(NOTIF_PATTERNS.DELEGATION_TAKE_BACK, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await notificationService.takeBack(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("↩ Задача возвращена тебе.");
+        await ctx.reply(NOTIF_TEXTS.TASK_TAKEN_BACK);
     });
 
-    // Deadline: mark done
-    bot.callbackQuery(/^notif:deadline:done:(.+)$/, async (ctx) => {
+    bot.callbackQuery(NOTIF_PATTERNS.DEADLINE_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await notificationService.markDone(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("✅ Задача завершена.");
+        await ctx.reply(NOTIF_TEXTS.TASK_DONE);
     });
 
-    // Deadline: delete
-    bot.callbackQuery(/^notif:deadline:delete:(.+)$/, async (ctx) => {
+    bot.callbackQuery(NOTIF_PATTERNS.DEADLINE_DELETE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await notificationService.markDeleted(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("🗑 Задача удалена.");
+        await ctx.reply(NOTIF_TEXTS.TASK_DELETED);
     });
 
-    // Deadline: reschedule — ask new date
-    bot.callbackQuery(/^notif:deadline:reschedule:(.+)$/, async (ctx) => {
+    bot.callbackQuery(NOTIF_PATTERNS.DEADLINE_RESCHEDULE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        ctx.session.scene = "notif:reschedule";
+        ctx.session.scene = NOTIF_SCENES.RESCHEDULE;
         ctx.session.rescheduleTaskId = taskId;
 
         const keyboard = new InlineKeyboard()
-            .text("Завтра", `notif:reschedule_date:tomorrow:${taskId}`)
-            .text("Через 3 дня", `notif:reschedule_date:in_3_days:${taskId}`)
+            .text(NOTIF_BUTTONS.TOMORROW, NOTIF_CALLBACKS.RESCHEDULE_DATE("tomorrow", taskId))
+            .text(NOTIF_BUTTONS.IN_3_DAYS, NOTIF_CALLBACKS.RESCHEDULE_DATE("in_3_days", taskId))
             .row()
-            .text("На следующей неделе", `notif:reschedule_date:next_week:${taskId}`)
-            .text("Указать дату", `notif:reschedule_date:custom:${taskId}`);
+            .text(NOTIF_BUTTONS.NEXT_WEEK, NOTIF_CALLBACKS.RESCHEDULE_DATE("next_week", taskId))
+            .text(NOTIF_BUTTONS.CUSTOM_DATE, NOTIF_CALLBACKS.RESCHEDULE_DATE(NOTIF_PRESET_VALUES.CUSTOM, taskId));
 
-        await ctx.reply("📅 На когда переносим?", { reply_markup: keyboard });
+        await ctx.reply(NOTIF_TEXTS.RESCHEDULE_PROMPT, { reply_markup: keyboard });
     });
 
-    // Reschedule date preset selected
-    bot.callbackQuery(/^notif:reschedule_date:(.+):(.+)$/, async (ctx) => {
+    bot.callbackQuery(NOTIF_PATTERNS.RESCHEDULE_DATE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const preset = ctx.match[1];
         const taskId = ctx.match[2];
 
-        if (preset === "custom") {
-            ctx.session.scene = "notif:reschedule_custom";
+        if (preset === NOTIF_PRESET_VALUES.CUSTOM) {
+            ctx.session.scene = NOTIF_SCENES.RESCHEDULE_CUSTOM;
             ctx.session.rescheduleTaskId = taskId;
-            await ctx.reply("Введи дату в формате ДД.ММ или ДД.ММ.ГГГГ:");
+            await ctx.reply(NOTIF_TEXTS.RESCHEDULE_CUSTOM_PROMPT);
             return;
         }
 
-        const date = resolveReschedulePreset(preset);
-        await applyReschedule(taskId, date);
+        const date = resolveDatePreset(preset);
+        await notificationService.reschedule(taskId, date);
         ctx.session.scene = null;
         ctx.session.rescheduleTaskId = undefined;
-        await ctx.reply(`✅ Дедлайн перенесён на ${formatDate(date)}.`);
+        await ctx.reply(NOTIF_TEXTS.RESCHEDULED(formatDateDisplay(date)));
     });
 
-    // Custom reschedule date text input
     bot.on("message:text", async (ctx, next) => {
-        if (ctx.session.scene !== "notif:reschedule_custom") return next();
+        if (ctx.session.scene !== NOTIF_SCENES.RESCHEDULE_CUSTOM) return next();
 
         const taskId = ctx.session.rescheduleTaskId;
         if (!taskId) return next();
 
-        const date = parseDate(ctx.message.text.trim());
+        const date = parseDateString(ctx.message.text.trim());
         if (!date || date < new Date()) {
-            await ctx.reply("Неверная дата или дата в прошлом. Попробуй ещё раз (ДД.ММ или ДД.ММ.ГГГГ):");
+            await ctx.reply(NOTIF_TEXTS.RESCHEDULE_INVALID);
             return;
         }
 
-        await applyReschedule(taskId, date);
+        await notificationService.reschedule(taskId, date);
         ctx.session.scene = null;
         ctx.session.rescheduleTaskId = undefined;
-        await ctx.reply(`✅ Дедлайн перенесён на ${formatDate(date)}.`);
+        await ctx.reply(NOTIF_TEXTS.RESCHEDULED(formatDateDisplay(date)));
     });
-};
-
-const resolveReschedulePreset = (preset: string): Date => {
-    const now = new Date();
-    if (preset === "tomorrow") now.setDate(now.getDate() + 1);
-    else if (preset === "in_3_days") now.setDate(now.getDate() + 3);
-    else if (preset === "next_week") now.setDate(now.getDate() + 7);
-    return now;
-};
-
-const applyReschedule = async (taskId: string, date: Date): Promise<void> => {
-    await notificationService.reschedule(taskId, date);
-};
-
-const formatDate = (date: Date): string => {
-    const d = String(date.getDate()).padStart(2, "0");
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    return `${d}.${m}.${date.getFullYear()}`;
-};
-
-const parseDate = (value: string): Date | null => {
-    const shortMatch = value.match(/^(\d{2})\.(\d{2})$/);
-    const fullMatch = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-
-    if (shortMatch) {
-        const [, day, month] = shortMatch;
-        const year = new Date().getFullYear();
-        return new Date(`${year}-${month}-${day}`);
-    }
-
-    if (fullMatch) {
-        const [, day, month, year] = fullMatch;
-        return new Date(`${year}-${month}-${day}`);
-    }
-
-    return null;
 };

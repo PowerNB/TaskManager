@@ -1,6 +1,6 @@
 import { userRepository } from "#root/repositories/user.repository.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
-import { canSend } from "#root/utils/time.js";
+import { canSend, getNowTime, toUserLocal } from "#root/utils/time.js";
 import { TaskModel, UserModel } from "#root/types/models.js";
 
 export const DURATION_MINUTES: Record<string, number> = {
@@ -22,17 +22,6 @@ export interface BriefPlan {
     overloaded: boolean;
 }
 
-const toUserLocal = (date: Date, timezone: string): Date => {
-    const offset = parseInt(timezone.replace("UTC", ""), 10);
-    return new Date(date.getTime() + offset * 3600000);
-};
-
-const getNowTime = (timezone: string): string => {
-    const local = toUserLocal(new Date(), timezone);
-    const h = String(local.getUTCHours()).padStart(2, "0");
-    const m = String(local.getUTCMinutes()).padStart(2, "0");
-    return `${h}:${m}`;
-};
 
 const isBriefTime = (user: UserModel): boolean => {
     const nowTime = getNowTime(user.timezone);
@@ -104,5 +93,17 @@ export const morningBriefService = {
             if (task) total += DURATION_MINUTES[task.duration_tag] ?? 0;
         }
         return total;
+    },
+
+    calcTaskMinutes: (task: TaskModel): number => DURATION_MINUTES[task.duration_tag] ?? 0,
+
+    calcTotalMinutes: (tasks: TaskModel[]): number =>
+        tasks.reduce((sum, t) => sum + (DURATION_MINUTES[t.duration_tag] ?? 0), 0),
+
+    findNextFittingIndex: (candidates: TaskModel[], fromIndex: number, remainingMinutes: number): number => {
+        for (let i = fromIndex; i < candidates.length; i++) {
+            if ((DURATION_MINUTES[candidates[i].duration_tag] ?? 0) <= remainingMinutes) return i;
+        }
+        return -1;
     },
 };

@@ -8,7 +8,7 @@ import {
     BRIEF_TIME_PRESETS,
     QUIET_HOURS_PRESETS,
 } from "./const.js";
-import { sendMainMenu } from "#root/bot/handlers/menu.js";
+import { sendMainMenu } from "#root/bot/handlers/menu/menu.js";
 
 const isValidTimezone = (value: string): boolean =>
     /^[+-](?:1[0-4]|[0-9])$/.test(value);

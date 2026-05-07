@@ -1,51 +1,46 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { lifecycleService } from "#root/services/lifecycle.service.js";
-
+import { SATURDAY_TEXTS, SATURDAY_PATTERNS } from "./const.js";
 
 export const registerSaturdayBriefHandler = (bot: Bot<BotContext>) => {
-    // Stale task: keep (update last_activity_at)
-    bot.callbackQuery(/^sat:stale:keep:(.+)$/, async (ctx) => {
+    bot.callbackQuery(SATURDAY_PATTERNS.STALE_KEEP, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await lifecycleService.keepActive(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("✅ Задача оставлена активной.");
+        await ctx.reply(SATURDAY_TEXTS.REPLY_KEPT);
     });
 
-    // Stale task: done
-    bot.callbackQuery(/^sat:stale:done:(.+)$/, async (ctx) => {
+    bot.callbackQuery(SATURDAY_PATTERNS.STALE_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await lifecycleService.markDone(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("✅ Задача выполнена.");
+        await ctx.reply(SATURDAY_TEXTS.REPLY_DONE);
     });
 
-    // Stale task: delete
-    bot.callbackQuery(/^sat:stale:delete:(.+)$/, async (ctx) => {
+    bot.callbackQuery(SATURDAY_PATTERNS.STALE_DELETE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await lifecycleService.markDeleted(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("🗑 Задача удалена.");
+        await ctx.reply(SATURDAY_TEXTS.REPLY_DELETED);
     });
 
-    // Frozen task: return to active
-    bot.callbackQuery(/^sat:frozen:return:(.+)$/, async (ctx) => {
+    bot.callbackQuery(SATURDAY_PATTERNS.FROZEN_RETURN, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await lifecycleService.returnFromFrozen(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("↩ Задача возвращена в активные.");
+        await ctx.reply(SATURDAY_TEXTS.REPLY_RETURNED);
     });
 
-    // Frozen task: delete
-    bot.callbackQuery(/^sat:frozen:delete:(.+)$/, async (ctx) => {
+    bot.callbackQuery(SATURDAY_PATTERNS.FROZEN_DELETE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         await lifecycleService.markDeleted(taskId);
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
-        await ctx.reply("🗑 Задача удалена.");
+        await ctx.reply(SATURDAY_TEXTS.REPLY_DELETED);
     });
 };

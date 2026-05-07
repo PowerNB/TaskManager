@@ -1,27 +1,26 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
-import { morningBriefService, DURATION_MINUTES } from "#root/services/brief/morning.service.js";
+import { morningBriefService } from "#root/services/brief/morning.service.js";
 import { TaskModel } from "#root/types/models.js";
-import { startEloSession } from "#root/bot/handlers/elo.handler.js";
-import { MORNING_BRIEF_TEXTS } from "./const.js";
+import { startEloSession } from "#root/bot/handlers/elo/elo.handler.js";
+import { formatTimeHHmm, formatMinutes } from "#root/utils/time.js";
+import {
+    MORNING_BRIEF_TEXTS,
+    MORNING_BRIEF_CALLBACKS,
+    MORNING_BRIEF_PATTERNS,
+    MORNING_BRIEF_SCENES,
+    ELO_PAIR_COUNT,
+} from "./const.js";
 import { FREE_TIME_PRESETS, CATEGORY_LABELS, DURATION_LABELS } from "#root/types/brief.js";
 
-const formatMinutes = (minutes: number): string => {
-    if (minutes < 60) return `${minutes} мин`;
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (m === 0) return `${h} ч`;
-    return `${h} ч ${m} мин`;
-};
-
 const formatTask = (task: TaskModel): string => {
-    const parts: string[] = [`📌 ${task.title} — ${DURATION_LABELS[task.duration_tag]}`];
+    const parts = [
+        `${MORNING_BRIEF_TEXTS.MANDATORY_TASK_PREFIX} ${MORNING_BRIEF_TEXTS.TASK_FORMAT(task.title, DURATION_LABELS[task.duration_tag])}`,
+    ];
     if (task.due_time) {
-        const h = String(task.due_time.getHours()).padStart(2, "0");
-        const m = String(task.due_time.getMinutes()).padStart(2, "0");
-        parts.push(`в ${h}:${m}`);
+        parts.push(`${MORNING_BRIEF_TEXTS.TIME_PREFIX} ${formatTimeHHmm(task.due_time)}`);
     }
-    return parts.join(" — ");
+    return parts.join(` ${MORNING_BRIEF_TEXTS.SEPARATOR} `);
 };
 
 const sendNextCandidate = async (ctx: BotContext, candidates: TaskModel[], idx: number, remainingMinutes: number) => {
@@ -32,12 +31,10 @@ const sendNextCandidate = async (ctx: BotContext, candidates: TaskModel[], idx: 
     }
 
     const task = candidates[idx];
-    const taskMinutes = DURATION_MINUTES[task.duration_tag] ?? 0;
+    const taskMinutes = morningBriefService.calcTaskMinutes(task);
 
     if (taskMinutes > remainingMinutes) {
-        const next = candidates.slice(idx + 1).findIndex(
-            (t) => (DURATION_MINUTES[t.duration_tag] ?? 0) <= remainingMinutes,
-        );
+        const next = morningBriefService.findNextFittingIndex(candidates, idx + 1, remainingMinutes);
 
         if (next === -1) {
             await ctx.reply(MORNING_BRIEF_TEXTS.NO_CANDIDATES);
@@ -45,21 +42,21 @@ const sendNextCandidate = async (ctx: BotContext, candidates: TaskModel[], idx: 
             return;
         }
 
-        ctx.session.brief = { ...ctx.session.brief, currentCandidateIndex: idx + 1 + next };
-        await sendNextCandidate(ctx, candidates, idx + 1 + next, remainingMinutes);
+        ctx.session.brief = { ...ctx.session.brief, currentCandidateIndex: next };
+        await sendNextCandidate(ctx, candidates, next, remainingMinutes);
         return;
     }
 
     const tags = [CATEGORY_LABELS[task.category], DURATION_LABELS[task.duration_tag]].join(" ");
 
     const keyboard = new InlineKeyboard()
-        .text(MORNING_BRIEF_TEXTS.ADD_TO_PLAN, `brief:add:${task.id}`)
-        .text(MORNING_BRIEF_TEXTS.SKIP_TASK, `brief:skip:${task.id}`)
+        .text(MORNING_BRIEF_TEXTS.ADD_TO_PLAN, MORNING_BRIEF_CALLBACKS.ADD_VALUE(task.id))
+        .text(MORNING_BRIEF_TEXTS.SKIP_TASK, MORNING_BRIEF_CALLBACKS.SKIP_VALUE(task.id))
         .row()
-        .text(MORNING_BRIEF_TEXTS.FINISH_PLAN, "brief:finish");
+        .text(MORNING_BRIEF_TEXTS.FINISH_PLAN, MORNING_BRIEF_CALLBACKS.FINISH);
 
     await ctx.reply(
-        `Осталось: ${formatMinutes(remainingMinutes)}\n\n📋 ${task.title}\n${tags}`,
+        MORNING_BRIEF_TEXTS.CANDIDATE_MESSAGE(formatMinutes(remainingMinutes), task.title, tags),
         { reply_markup: keyboard },
     );
 };
@@ -75,22 +72,24 @@ const sendFinalPlan = async (ctx: BotContext) => {
     const plannedTasks = await morningBriefService.getTasksByIds(plannedIds);
 
     const validPlanned = plannedTasks.filter((t): t is TaskModel => t !== null);
-    const totalMinutes = mandatoryMinutes + validPlanned.reduce((s, t) => s + (DURATION_MINUTES[t.duration_tag] ?? 0), 0);
+    const totalMinutes = mandatoryMinutes + morningBriefService.calcTotalMinutes(validPlanned);
 
-    const lines: string[] = ["✅ План на сегодня\n"];
+    const lines: string[] = [MORNING_BRIEF_TEXTS.PLAN_HEADER];
 
     if (mandatoryTasks.length > 0) {
-        lines.push("📌 Обязательные:");
-        mandatoryTasks.forEach((t) => lines.push(`— ${formatTask(t)}`));
+        lines.push(MORNING_BRIEF_TEXTS.MANDATORY_SECTION);
+        mandatoryTasks.forEach((t) => lines.push(`${MORNING_BRIEF_TEXTS.LIST_ITEM_PREFIX} ${formatTask(t)}`));
     }
 
     if (validPlanned.length > 0) {
-        lines.push("\n📋 Дополнительные:");
-        validPlanned.forEach((t) => lines.push(`— ${t.title} — ${DURATION_LABELS[t.duration_tag]}`));
+        lines.push(MORNING_BRIEF_TEXTS.OPTIONAL_SECTION);
+        validPlanned.forEach((t) =>
+            lines.push(`${MORNING_BRIEF_TEXTS.LIST_ITEM_PREFIX} ${MORNING_BRIEF_TEXTS.TASK_FORMAT(t.title, DURATION_LABELS[t.duration_tag])}`),
+        );
     }
 
-    lines.push(`\nИтого: ${formatMinutes(totalMinutes)} из ${formatMinutes(freeMinutes)} запланировано.`);
-    lines.push("Удачного дня!");
+    lines.push(MORNING_BRIEF_TEXTS.PLAN_TOTAL(formatMinutes(totalMinutes), formatMinutes(freeMinutes)));
+    lines.push(MORNING_BRIEF_TEXTS.PLAN_GOOD_LUCK);
 
     await ctx.reply(lines.join("\n"));
 
@@ -99,20 +98,18 @@ const sendFinalPlan = async (ctx: BotContext) => {
 
     const candidates = await morningBriefService.getCandidates(userId);
     if (candidates.length >= 2) {
-        await startEloSession(ctx, 10);
+        await startEloSession(ctx, ELO_PAIR_COUNT);
     }
 };
 
 export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
-    // Entry from job (bot sends first message, user responds with hours)
-    bot.callbackQuery("brief:inbox", async (ctx) => {
+    bot.callbackQuery(MORNING_BRIEF_CALLBACKS.INBOX, async (ctx) => {
         await ctx.answerCallbackQuery();
         ctx.session.scene = null;
-        await ctx.reply("📥 Инбокс пока не реализован.");
+        await ctx.reply(MORNING_BRIEF_TEXTS.INBOX_NOT_IMPLEMENTED);
     });
 
-    // "Yes, pick candidates" after mandatory overview
-    bot.callbackQuery("brief:hours:pick_candidates", async (ctx) => {
+    bot.callbackQuery(MORNING_BRIEF_CALLBACKS.PICK_CANDIDATES, async (ctx) => {
         await ctx.answerCallbackQuery();
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
 
@@ -130,13 +127,12 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         await sendNextCandidate(ctx, candidates, 0, remaining);
     });
 
-    // Free time preset selected
-    bot.callbackQuery(/^brief:hours:(.+)$/, async (ctx) => {
+    bot.callbackQuery(MORNING_BRIEF_PATTERNS.HOURS, async (ctx) => {
         await ctx.answerCallbackQuery();
         const value = ctx.match[1];
 
-        if (value === "custom") {
-            ctx.session.scene = "brief:awaiting_custom_hours";
+        if (ctx.callbackQuery.data === MORNING_BRIEF_CALLBACKS.HOURS_CUSTOM) {
+            ctx.session.scene = MORNING_BRIEF_SCENES.AWAITING_CUSTOM_HOURS;
             await ctx.reply(MORNING_BRIEF_TEXTS.CUSTOM_HOURS_PROMPT);
             return;
         }
@@ -147,8 +143,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         await startBriefPlanStep(ctx, freeMinutes);
     });
 
-    // Add candidate to plan
-    bot.callbackQuery(/^brief:add:(.+)$/, async (ctx) => {
+    bot.callbackQuery(MORNING_BRIEF_PATTERNS.ADD, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
         const brief = ctx.session.brief ?? {};
@@ -175,8 +170,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         await sendNextCandidate(ctx, candidates, idx, newRemaining);
     });
 
-    // Skip candidate
-    bot.callbackQuery(/^brief:skip:(.+)$/, async (ctx) => {
+    bot.callbackQuery(MORNING_BRIEF_PATTERNS.SKIP, async (ctx) => {
         await ctx.answerCallbackQuery();
         const brief = ctx.session.brief ?? {};
         const idx = (brief.currentCandidateIndex ?? 0) + 1;
@@ -191,23 +185,20 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         await sendNextCandidate(ctx, candidates, idx, remaining);
     });
 
-    // Finish manually
-    bot.callbackQuery("brief:finish", async (ctx) => {
+    bot.callbackQuery(MORNING_BRIEF_CALLBACKS.FINISH, async (ctx) => {
         await ctx.answerCallbackQuery();
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await sendFinalPlan(ctx);
     });
 
-    // "Only mandatory" — skip candidates step
-    bot.callbackQuery("brief:only_mandatory", async (ctx) => {
+    bot.callbackQuery(MORNING_BRIEF_CALLBACKS.ONLY_MANDATORY, async (ctx) => {
         await ctx.answerCallbackQuery();
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await sendFinalPlan(ctx);
     });
 
-    // Custom hours text input
-    bot.on("message:text", async (ctx, next) => {
-        if (ctx.session.scene !== "brief:awaiting_custom_hours") return next();
+    bot.on(MORNING_BRIEF_TEXTS.MESSAGE_TEXT_EVENT, async (ctx, next) => {
+        if (ctx.session.scene !== MORNING_BRIEF_SCENES.AWAITING_CUSTOM_HOURS) return next();
 
         const raw = ctx.message.text.trim().replace(",", ".");
         const hours = parseFloat(raw);
@@ -228,10 +219,10 @@ export const startBriefForUser = async (
 ) => {
     const keyboard = new InlineKeyboard();
     Object.entries(FREE_TIME_PRESETS).forEach(([key, preset]) => {
-        if (key === "CUSTOM") {
-            keyboard.row().text(preset.label, "brief:hours:custom");
+        if (key === MORNING_BRIEF_CALLBACKS.HOURS_CUSTOM_KEY) {
+            keyboard.row().text(preset.label, MORNING_BRIEF_CALLBACKS.HOURS_CUSTOM);
         } else {
-            keyboard.text(preset.label, `brief:hours:${"minutes" in preset ? preset.minutes : 0}`);
+            keyboard.text(preset.label, MORNING_BRIEF_CALLBACKS.HOURS_VALUE(preset.minutes));
         }
     });
 
@@ -251,11 +242,11 @@ const startBriefPlanStep = async (ctx: BotContext, freeMinutes: number) => {
 
     if (plan.overloaded) {
         const lines = [
-            "⚠️ Обязательные задачи превышают свободное время.\n",
-            `Свободно: ${formatMinutes(freeMinutes)}`,
-            `Обязательные: ${formatMinutes(plan.mandatoryMinutes)}\n`,
+            MORNING_BRIEF_TEXTS.OVERLOADED_HEADER,
+            MORNING_BRIEF_TEXTS.OVERLOADED_FREE(formatMinutes(freeMinutes)),
+            MORNING_BRIEF_TEXTS.OVERLOADED_MANDATORY(formatMinutes(plan.mandatoryMinutes)),
             ...plan.mandatory.map(formatTask),
-            "\nЭто твой план на сегодня. Удачи!",
+            MORNING_BRIEF_TEXTS.OVERLOADED_FOOTER,
         ];
         await ctx.reply(lines.join("\n"));
         ctx.session.scene = null;
@@ -266,21 +257,20 @@ const startBriefPlanStep = async (ctx: BotContext, freeMinutes: number) => {
     if (plan.mandatory.length > 0) {
         const remaining = freeMinutes - plan.mandatoryMinutes;
         const lines = [
-            "Сегодня обязательные задачи:\n",
+            MORNING_BRIEF_TEXTS.MANDATORY_TASKS_HEADER,
             ...plan.mandatory.map(formatTask),
-            `\nЗанято: ${formatMinutes(plan.mandatoryMinutes)}`,
-            `Осталось: ${formatMinutes(remaining)}\n`,
-            "Подберём задачи на оставшееся время?",
+            MORNING_BRIEF_TEXTS.MANDATORY_BUSY(formatMinutes(plan.mandatoryMinutes)),
+            MORNING_BRIEF_TEXTS.MANDATORY_REMAINING(formatMinutes(remaining)),
+            MORNING_BRIEF_TEXTS.MANDATORY_QUESTION,
         ];
         const keyboard = new InlineKeyboard()
-            .text("Да", "brief:hours:pick_candidates")
-            .text(MORNING_BRIEF_TEXTS.ONLY_MANDATORY, "brief:only_mandatory");
+            .text(MORNING_BRIEF_TEXTS.YES, MORNING_BRIEF_CALLBACKS.PICK_CANDIDATES)
+            .text(MORNING_BRIEF_TEXTS.ONLY_MANDATORY, MORNING_BRIEF_CALLBACKS.ONLY_MANDATORY);
         await ctx.reply(lines.join("\n"), { reply_markup: keyboard });
-        ctx.session.scene = "brief:selecting_candidates";
+        ctx.session.scene = MORNING_BRIEF_SCENES.SELECTING_CANDIDATES;
         return;
     }
 
-    // No mandatory tasks — go straight to candidates
     const remaining = freeMinutes;
     const candidates = await morningBriefService.getCandidates(userId);
 
@@ -291,6 +281,6 @@ const startBriefPlanStep = async (ctx: BotContext, freeMinutes: number) => {
         return;
     }
 
-    ctx.session.scene = "brief:selecting_candidates";
+    ctx.session.scene = MORNING_BRIEF_SCENES.SELECTING_CANDIDATES;
     await sendNextCandidate(ctx, candidates, 0, remaining);
 };

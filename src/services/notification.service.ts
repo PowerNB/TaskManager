@@ -1,6 +1,6 @@
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { userRepository } from "#root/repositories/user.repository.js";
-import { canSend } from "#root/utils/time.js";
+import { canSend, getNowTime } from "#root/utils/time.js";
 import { TaskModel } from "#root/types/models.js";
 
 export interface DelegationNotification {
@@ -15,15 +15,6 @@ export interface DeadlineNotification {
     canSendNow: boolean;
 }
 
-const getNowTime = (timezone: string): string => {
-    const offset = parseInt(timezone.replace("UTC", ""), 10);
-    const now = new Date();
-    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    const local = new Date(utc + offset * 3600000);
-    const h = String(local.getHours()).padStart(2, "0");
-    const m = String(local.getMinutes()).padStart(2, "0");
-    return `${h}:${m}`;
-};
 
 export const notificationService = {
     getDueDelegations: async (): Promise<DelegationNotification[]> => {
