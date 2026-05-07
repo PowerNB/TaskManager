@@ -37,6 +37,33 @@ export const createNotificationsWorker = (api: Api) => {
         }
     };
 
+    const sendMorningTimeDeadlineNotifications = async () => {
+        const notifications = await notificationService.getMorningTimeDeadlines();
+
+        for (const { task, userId, canSendNow } of notifications) {
+            if (!canSendNow) continue;
+
+            const tags = [CATEGORY_LABELS[task.category], DURATION_LABELS[task.duration_tag]]
+                .filter(Boolean)
+                .join(" ");
+
+            const dueTime = task.due_time ? formatTimeUTCHHmm(task.due_time) : "";
+
+            const keyboard = new InlineKeyboard()
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_DONE, NOTIF_JOB_CALLBACKS.DEADLINE_DONE(task.id))
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_RESCHEDULE, NOTIF_JOB_CALLBACKS.DEADLINE_RESCHEDULE(task.id))
+                .text(NOTIF_JOB_BUTTONS.DEADLINE_DELETE, NOTIF_JOB_CALLBACKS.DEADLINE_DELETE(task.id));
+
+            const text =
+                NOTIF_JOB_TEXTS.MORNING_TIME_DEADLINE_HEADER(dueTime) +
+                NOTIF_JOB_TEXTS.MORNING_TIME_DEADLINE_BODY(task.title, tags);
+
+            await api.sendMessage(Number(userId), text, { reply_markup: keyboard });
+
+            logger.info({ taskId: task.id, userId }, JOBS_LOG.MORNING_TIME_DEADLINE_SENT);
+        }
+    };
+
     const sendDateDeadlineNotifications = async () => {
         const notifications = await notificationService.getDueDateDeadlines();
 
@@ -94,6 +121,7 @@ export const createNotificationsWorker = (api: Api) => {
             if (job.name === JOB_NAMES.CHECK_DELEGATIONS_AND_DATE_DEADLINES) {
                 await sendDelegationNotifications();
                 await sendDateDeadlineNotifications();
+                await sendMorningTimeDeadlineNotifications();
             } else if (job.name === JOB_NAMES.CHECK_TIME_DEADLINES) {
                 await sendTimeDeadlineNotifications();
             }

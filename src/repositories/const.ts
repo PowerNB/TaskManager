@@ -13,6 +13,7 @@ export const TASK_REPOSITORY_LOGS = {
     FIND_DUE_DELEGATIONS: "taskRepository.findDueDelegations",
     FIND_DUE_DATE_DEADLINES: "taskRepository.findDueDateDeadlines",
     FIND_DUE_TIME_DEADLINES: "taskRepository.findDueTimeDeadlines",
+    FIND_MORNING_TIME_DEADLINES: "taskRepository.findMorningTimeDeadlines",
     FIND_TODAY_MANDATORY: "taskRepository.findTodayMandatory",
     FIND_CANDIDATES_FOR_BRIEF: "taskRepository.findCandidatesForBrief",
     FIND_STALE: "taskRepository.findStale",

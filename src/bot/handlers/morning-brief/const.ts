@@ -43,6 +43,8 @@ export const MORNING_BRIEF_TEXTS = {
 } as const;
 
 export const ELO_PAIR_COUNT = 10;
+export const BRIEF_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+export const BRIEF_TIMEOUT_TEXT = "⏱ Сессия утреннего брифа истекла (2 часа). Бриф придёт завтра утром.";
 
 export const MORNING_BRIEF_CALLBACKS = {
     INBOX: "brief:inbox",

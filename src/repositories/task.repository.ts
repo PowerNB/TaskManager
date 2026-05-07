@@ -59,6 +59,17 @@ class TaskRepository extends Repository {
         });
     }
 
+    findMorningTimeDeadlines(): Promise<TaskModel[]> {
+        logger.debug(TASK_REPOSITORY_LOGS.FIND_MORNING_TIME_DEADLINES);
+        return this.client.task.findMany({
+            where: {
+                status: TASK_STATUS.ACTIVE,
+                due_date: { gte: startOfDay(), lte: endOfDay() },
+                due_time: { not: null },
+            },
+        });
+    }
+
     findTodayMandatory(userId: bigint): Promise<TaskModel[]> {
         logger.debug({ userId }, TASK_REPOSITORY_LOGS.FIND_TODAY_MANDATORY);
         return this.client.task.findMany({

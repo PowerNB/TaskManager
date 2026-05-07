@@ -54,6 +54,24 @@ export const notificationService = {
         return result;
     },
 
+    getMorningTimeDeadlines: async (): Promise<DeadlineNotification[]> => {
+        const tasks = await taskRepository.findMorningTimeDeadlines();
+        const result: DeadlineNotification[] = [];
+
+        for (const task of tasks) {
+            const user = await userRepository.findById(task.userId);
+            if (!user) continue;
+
+            const nowTime = getNowTime(user.timezone);
+            const canSendNow = canSend(nowTime, user.quiet_hours_from, user.quiet_hours_to);
+
+            result.push({ task, userId: task.userId, canSendNow });
+        }
+
+        logger.debug({ count: result.length }, "morning time deadlines fetched");
+        return result;
+    },
+
     getDueTimeDeadlines: async (): Promise<DeadlineNotification[]> => {
         const now = new Date();
         const from = new Date(now.getTime() + 55 * 60000);

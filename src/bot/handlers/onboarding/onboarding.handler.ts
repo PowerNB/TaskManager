@@ -92,6 +92,25 @@ const sendCompletionStep = async (ctx: BotContext) => {
     await sendMainMenu(ctx);
 };
 
+const resumeOnboarding = async (ctx: BotContext): Promise<boolean> => {
+    const scene = ctx.session.scene;
+    if (!scene?.startsWith("onboarding:")) return false;
+
+    if (scene === ONBOARDING_SCENES.TIMEZONE) {
+        await sendTimezoneStep(ctx);
+        return true;
+    }
+    if (scene === ONBOARDING_SCENES.BRIEF_TIME) {
+        await sendBriefTimeStep(ctx);
+        return true;
+    }
+    if (scene === ONBOARDING_SCENES.QUIET_HOURS_FROM || scene === ONBOARDING_SCENES.QUIET_HOURS_TO) {
+        await sendQuietHoursStep(ctx);
+        return true;
+    }
+    return false;
+};
+
 export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
     bot.command("start", async (ctx) => {
         const userId = BigInt(ctx.from!.id);
@@ -103,13 +122,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
             return;
         }
 
-        if (ctx.session.scene?.startsWith(ONBOARDING_CALLBACKS.TZ_PREFIX.split(":")[0] + ":onboarding")) {
-            return;
-        }
-
-        if (ctx.session.scene?.startsWith("onboarding:")) {
-            return;
-        }
+        if (await resumeOnboarding(ctx)) return;
 
         await settingsService.ensureUser(userId, ctx.from!.username ?? null);
         logger.info({ userId: ctx.from!.id }, "onboarding: started");
@@ -142,6 +155,13 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
 
         if (match === ONBOARDING_PRESET_VALUES.OTHER) {
             await ctx.reply(ONBOARDING_TEXTS.BRIEF_TIME_OTHER_PROMPT);
+            return;
+        }
+
+        const quietFrom = ctx.session.onboarding?.quiet_hours_from;
+        const quietTo = ctx.session.onboarding?.quiet_hours_to;
+        if (quietFrom && quietTo && isTimeInQuietHours(match, quietFrom, quietTo)) {
+            await ctx.reply(ONBOARDING_TEXTS.BRIEF_TIME_IN_QUIET_HOURS);
             return;
         }
 
@@ -187,6 +207,13 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
 
     bot.on("message:text", async (ctx, next) => {
         const scene = ctx.session.scene;
+
+        // Если пользователь пишет что-то не входящее в текущую onboarding-сцену — возобновляем шаг
+        const isTextInputScene = scene === ONBOARDING_SCENES.TIMEZONE
+            || scene === ONBOARDING_SCENES.BRIEF_TIME
+            || scene === ONBOARDING_SCENES.QUIET_HOURS_FROM
+            || scene === ONBOARDING_SCENES.QUIET_HOURS_TO;
+        if (!isTextInputScene && await resumeOnboarding(ctx)) return;
 
         if (scene === ONBOARDING_SCENES.TIMEZONE) {
             const value = ctx.message.text.trim();

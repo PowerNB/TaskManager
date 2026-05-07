@@ -53,8 +53,10 @@ export interface SessionData {
     sceneHistory: Scene[];
     onboarding?: OnboardingDraft;
     capture?: CaptureDraft;
+    captureStartedAt?: number;
     rescheduleTaskId?: string;
     brief?: MorningBriefDraft;
+    briefStartedAt?: number;
 }
 
 export type BotContext = Context & SessionFlavor<SessionData>;

@@ -24,11 +24,27 @@ import {
     DATE_PRESETS,
     TITLE_MAX_LENGTH,
     SEPARATOR,
+    CAPTURE_TIMEOUT_MS,
 } from "./const.js";
 import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/labels.js";
 
 
 
+
+const isCaptureExpired = (ctx: BotContext): boolean => {
+    const started = ctx.session.captureStartedAt;
+    return !!started && Date.now() - started > CAPTURE_TIMEOUT_MS;
+};
+
+const resetExpiredCapture = async (ctx: BotContext): Promise<boolean> => {
+    if (!isCaptureExpired(ctx)) return false;
+    ctx.session.scene = null;
+    ctx.session.capture = undefined;
+    ctx.session.captureStartedAt = undefined;
+    clearHistory(ctx);
+    await ctx.reply(CAPTURE_TEXTS.CAPTURE_TIMEOUT);
+    return true;
+};
 
 const backButton = (): InlineKeyboard => new InlineKeyboard().text(CAPTURE_BUTTONS.BACK, CAPTURE_CALLBACKS.BACK);
 
@@ -164,6 +180,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
         logger.debug({ userId: ctx.from!.id }, "command /add");
         ctx.session.scene = null;
         ctx.session.capture = {};
+        ctx.session.captureStartedAt = Date.now();
         ctx.session.onboarding = undefined;
         ctx.session.brief = undefined;
         ctx.session.rescheduleTaskId = undefined;
@@ -205,6 +222,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(GLOBAL_CALLBACKS.ADD_TASK, async (ctx) => {
         await ctx.answerCallbackQuery();
         ctx.session.capture = {};
+        ctx.session.captureStartedAt = Date.now();
         clearHistory(ctx);
         await sendTitleStep(ctx);
     });
@@ -212,6 +230,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(CAPTURE_CALLBACKS.ADD_MORE, async (ctx) => {
         await ctx.answerCallbackQuery();
         ctx.session.capture = {};
+        ctx.session.captureStartedAt = Date.now();
         clearHistory(ctx);
         await sendTitleStep(ctx);
     });
@@ -333,6 +352,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_PATTERNS.CATEGORY, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredCapture(ctx)) return;
         const category = ctx.match[1] as Category;
         ctx.session.capture = { ...ctx.session.capture, category };
         await sendDurationStep(ctx);
@@ -340,6 +360,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_PATTERNS.DURATION, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredCapture(ctx)) return;
         const duration_tag = ctx.match[1] as DurationTag;
         ctx.session.capture = { ...ctx.session.capture, duration_tag };
         await sendOptionsStep(ctx);
@@ -367,6 +388,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_CALLBACKS.OPTION_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredCapture(ctx)) return;
         logger.info({ userId: ctx.from.id }, "capture: task saved");
         await saveTask(ctx);
     });
@@ -384,6 +406,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_PATTERNS.OPTION_CATEGORY, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredCapture(ctx)) return;
         const category = ctx.match[1] as Category;
         ctx.session.capture = { ...ctx.session.capture, category };
         await sendOptionsStep(ctx);
@@ -398,6 +421,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_PATTERNS.DATE, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredCapture(ctx)) return;
         const value = ctx.match[1];
 
         if (value === DATE_PRESETS.CUSTOM.value) {
@@ -416,6 +440,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_PATTERNS.QUIET_WARNING, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredCapture(ctx)) return;
         const action = ctx.match[1];
 
         if (action === QUIET_WARNING_ACTIONS.SAVE) {
@@ -428,6 +453,9 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.on("message:text", async (ctx, next) => {
         const scene = ctx.session.scene;
+
+        const isCaptureScene = scene !== null && scene.startsWith("capture:");
+        if (isCaptureScene && await resetExpiredCapture(ctx)) return;
 
         if (scene === CAPTURE_SCENES.AWAITING_TITLE) {
             const title = ctx.message.text.trim();

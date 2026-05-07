@@ -13,8 +13,20 @@ import {
     MORNING_BRIEF_EVENTS,
     ELO_PAIR_COUNT,
     FREE_TIME_PRESETS,
+    BRIEF_TIMEOUT_MS,
+    BRIEF_TIMEOUT_TEXT,
 } from "./const.js";
 import { CATEGORY_LABELS, DURATION_LABELS } from "#root/types/labels.js";
+
+const resetExpiredBrief = async (ctx: BotContext): Promise<boolean> => {
+    const started = ctx.session.briefStartedAt;
+    if (!started || Date.now() - started <= BRIEF_TIMEOUT_MS) return false;
+    ctx.session.scene = null;
+    ctx.session.brief = undefined;
+    ctx.session.briefStartedAt = undefined;
+    await ctx.reply(BRIEF_TIMEOUT_TEXT);
+    return true;
+};
 
 const formatTask = (task: TaskModel): string => {
     const parts = [
@@ -115,6 +127,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(MORNING_BRIEF_CALLBACKS.PICK_CANDIDATES, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredBrief(ctx)) return;
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
 
         const brief = ctx.session.brief ?? {};
@@ -136,6 +149,8 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         const value = ctx.match[1];
         logger.debug({ userId: ctx.from!.id, value }, "morning brief: hours selected");
 
+        if (!ctx.session.briefStartedAt) ctx.session.briefStartedAt = Date.now();
+
         if (ctx.callbackQuery.data === MORNING_BRIEF_CALLBACKS.HOURS_CUSTOM) {
             ctx.session.scene = MORNING_BRIEF_SCENES.AWAITING_CUSTOM_HOURS;
             await ctx.reply(MORNING_BRIEF_TEXTS.CUSTOM_HOURS_PROMPT);
@@ -150,6 +165,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(MORNING_BRIEF_PATTERNS.ADD, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredBrief(ctx)) return;
         const taskId = ctx.match[1];
         logger.info({ userId: ctx.from!.id, taskId }, "morning brief: task added to plan");
         const brief = ctx.session.brief ?? {};
@@ -178,6 +194,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(MORNING_BRIEF_PATTERNS.SKIP, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredBrief(ctx)) return;
         const brief = ctx.session.brief ?? {};
         const idx = (brief.currentCandidateIndex ?? 0) + 1;
         ctx.session.brief = { ...brief, currentCandidateIndex: idx };
@@ -193,18 +210,21 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(MORNING_BRIEF_CALLBACKS.FINISH, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredBrief(ctx)) return;
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await sendFinalPlan(ctx);
     });
 
     bot.callbackQuery(MORNING_BRIEF_CALLBACKS.ONLY_MANDATORY, async (ctx) => {
         await ctx.answerCallbackQuery();
+        if (await resetExpiredBrief(ctx)) return;
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         await sendFinalPlan(ctx);
     });
 
     bot.on(MORNING_BRIEF_EVENTS.MESSAGE_TEXT, async (ctx, next) => {
         if (ctx.session.scene !== MORNING_BRIEF_SCENES.AWAITING_CUSTOM_HOURS) return next();
+        if (await resetExpiredBrief(ctx)) return;
 
         const raw = ctx.message.text.trim().replace(",", ".");
         const hours = parseFloat(raw);

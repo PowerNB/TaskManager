@@ -85,6 +85,8 @@ export const NOTIF_JOB_TEXTS = {
         `\n\n3 дня назад ты передал задачу:\n"${title}" → ${delegatedTo}\n\nОн уже сделал?`,
     DATE_DEADLINE_HEADER: "📅 Сегодня дедлайн",
     DATE_DEADLINE_BODY: (title: string, tags: string) => `\n\n"${title}"\n${tags}`,
+    MORNING_TIME_DEADLINE_HEADER: (dueTime: string) => `📅 Сегодня в ${dueTime}`,
+    MORNING_TIME_DEADLINE_BODY: (title: string, tags: string) => `\n\n"${title}"\n${tags}`,
     TIME_DEADLINE_HEADER: (dueTime: string) => `⏰ Через час — ${dueTime}`,
     TIME_DEADLINE_BODY: (title: string, tags: string) => `\n\n"${title}"\n${tags}`,
 } as const;
@@ -119,6 +121,7 @@ export const JOBS_LOG = {
     NOTIFICATIONS_STARTED: "notifications job started",
     DELEGATION_SENT: "delegation notification sent",
     DATE_DEADLINE_SENT: "date deadline notification sent",
+    MORNING_TIME_DEADLINE_SENT: "morning time deadline notification sent",
     TIME_DEADLINE_SENT: "time deadline notification sent",
     NOTIFICATIONS_FAILED: "notifications job failed",
 } as const;

@@ -26,7 +26,10 @@ export const CAPTURE_TEXTS = {
     INBOX_HEADER: (count: number) => `📥 Инбокс — ${count} задач`,
     INBOX_ADD_TASK: "+ Добавить задачу",
     TASK_DELETED: "🗑 Задача удалена",
+    CAPTURE_TIMEOUT: "⏱ Сессия добавления задачи истекла (30 минут). Начни заново — /add",
 } as const;
+
+export const CAPTURE_TIMEOUT_MS = 30 * 60 * 1000;
 
 export const CAPTURE_BUTTONS = {
     BACK: "◀ Назад",
