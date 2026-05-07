@@ -3,7 +3,7 @@ import { Api, InlineKeyboard } from "grammy";
 import { bullRedis } from "#root/infrastructure/redis.js";
 import { notificationService } from "#root/services/notification.service.js";
 import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/labels.js";
-import { formatTimeUTCHHmm } from "#root/utils/time.js";
+import { formatTimeUTCHHmm, toUserLocal } from "#root/utils/time.js";
 import { logger } from "#root/logger.js";
 import {
     QUEUE_NAMES,
@@ -40,14 +40,14 @@ export const createNotificationsWorker = (api: Api) => {
     const sendMorningTimeDeadlineNotifications = async () => {
         const notifications = await notificationService.getMorningTimeDeadlines();
 
-        for (const { task, userId, canSendNow } of notifications) {
+        for (const { task, userId, canSendNow, timezone } of notifications) {
             if (!canSendNow) continue;
 
             const tags = [CATEGORY_LABELS[task.category], DURATION_LABELS[task.duration_tag]]
                 .filter(Boolean)
                 .join(" ");
 
-            const dueTime = task.due_time ? formatTimeUTCHHmm(task.due_time) : "";
+            const dueTime = task.due_time ? formatTimeUTCHHmm(toUserLocal(task.due_time, timezone)) : "";
 
             const keyboard = new InlineKeyboard()
                 .text(NOTIF_JOB_BUTTONS.DEADLINE_DONE, NOTIF_JOB_CALLBACKS.DEADLINE_DONE(task.id))
@@ -92,12 +92,12 @@ export const createNotificationsWorker = (api: Api) => {
     const sendTimeDeadlineNotifications = async () => {
         const notifications = await notificationService.getDueTimeDeadlines();
 
-        for (const { task, userId } of notifications) {
+        for (const { task, userId, timezone } of notifications) {
             const tags = [CATEGORY_LABELS[task.category], DURATION_LABELS[task.duration_tag]]
                 .filter(Boolean)
                 .join(" ");
 
-            const dueTime = task.due_time ? formatTimeUTCHHmm(task.due_time) : "";
+            const dueTime = task.due_time ? formatTimeUTCHHmm(toUserLocal(task.due_time, timezone)) : "";
 
             const keyboard = new InlineKeyboard()
                 .text(NOTIF_JOB_BUTTONS.DEADLINE_DONE, NOTIF_JOB_CALLBACKS.DEADLINE_DONE(task.id))

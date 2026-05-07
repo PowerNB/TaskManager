@@ -14,6 +14,7 @@ export interface DeadlineNotification {
     task: TaskModel;
     userId: bigint;
     canSendNow: boolean;
+    timezone: string;
 }
 
 
@@ -47,7 +48,7 @@ export const notificationService = {
             const nowTime = getNowTime(user.timezone);
             const canSendNow = canSend(nowTime, user.quiet_hours_from, user.quiet_hours_to);
 
-            result.push({ task, userId: task.userId, canSendNow });
+            result.push({ task, userId: task.userId, canSendNow, timezone: user.timezone });
         }
 
         logger.debug({ count: result.length }, "due date deadlines fetched");
@@ -65,7 +66,7 @@ export const notificationService = {
             const nowTime = getNowTime(user.timezone);
             const canSendNow = canSend(nowTime, user.quiet_hours_from, user.quiet_hours_to);
 
-            result.push({ task, userId: task.userId, canSendNow });
+            result.push({ task, userId: task.userId, canSendNow, timezone: user.timezone });
         }
 
         logger.debug({ count: result.length }, "morning time deadlines fetched");
@@ -85,7 +86,7 @@ export const notificationService = {
             if (!user) continue;
 
             // По ТЗ напоминание за час отправляется всегда, даже в тихие часы
-            result.push({ task, userId: task.userId, canSendNow: true });
+            result.push({ task, userId: task.userId, canSendNow: true, timezone: user.timezone });
         }
 
         logger.debug({ count: result.length }, "due time deadlines fetched");

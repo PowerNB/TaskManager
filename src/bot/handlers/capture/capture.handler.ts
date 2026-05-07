@@ -3,7 +3,7 @@ import { BotContext, CaptureDraft } from "#root/types/context.js";
 import { captureService } from "#root/services/capture.service.js";
 import { settingsService } from "#root/services/settings.service.js";
 import { logger } from "#root/logger.js";
-import { isValidTime, parseDateString, formatDate, formatTimeUTCHHmm, resolveDatePreset, formatIsoDateShort, isTimeAffectedByQuietHours } from "#root/utils/time.js";
+import { isValidTime, parseDateString, formatDate, formatTimeUTCHHmm, resolveDatePreset, formatIsoDateShort, isTimeAffectedByQuietHours, parseTimezoneOffset } from "#root/utils/time.js";
 import { pushScene, popScene, clearHistory } from "#root/bot/utils/scene.js";
 import { sendMainMenu } from "#root/bot/handlers/menu/menu.js";
 import { sendTaskMessage, buildTaskTags } from "#root/bot/handlers/task-message/task-message.js";
@@ -139,21 +139,24 @@ const sendConfirmation = async (ctx: BotContext) => {
     clearHistory(ctx);
 };
 
-const buildDueTime = (date: string | undefined, time: string | undefined): Date | null => {
+const buildDueTime = (date: string | undefined, time: string | undefined, timezoneOffsetHours: number): Date | null => {
     if (!time) return null;
     const dateStr = date ?? formatDate(new Date());
-    return new Date(`${dateStr}T${time}:00Z`);
+    const utcMs = new Date(`${dateStr}T${time}:00Z`).getTime() - timezoneOffsetHours * 3600000;
+    return new Date(utcMs);
 };
 
 const saveTask = async (ctx: BotContext) => {
     const draft = ctx.session.capture!;
     const userId = BigInt(ctx.from!.id);
+    const user = await settingsService.findUser(userId);
+    const tzOffset = parseTimezoneOffset(user?.timezone ?? "UTC+3");
 
     if (draft.taskId) {
         await captureService.updateTask(draft.taskId, {
             title: draft.title,
             due_date: draft.due_date ? new Date(draft.due_date) : null,
-            due_time: buildDueTime(draft.due_date, draft.due_time),
+            due_time: buildDueTime(draft.due_date, draft.due_time, tzOffset),
             delegated_to: draft.delegated_to ?? null,
             attachment_file_id: draft.attachment_file_id ?? null,
             attachment_type: draft.attachment_type ?? null,
@@ -165,7 +168,7 @@ const saveTask = async (ctx: BotContext) => {
             category: draft.category as Category,
             duration_tag: draft.duration_tag as DurationTag,
             due_date: draft.due_date ? new Date(draft.due_date) : null,
-            due_time: buildDueTime(draft.due_date, draft.due_time),
+            due_time: buildDueTime(draft.due_date, draft.due_time, tzOffset),
             delegated_to: draft.delegated_to ?? null,
             attachment_file_id: draft.attachment_file_id ?? null,
             attachment_type: draft.attachment_type ?? null,

@@ -50,8 +50,11 @@ export const resolveDatePreset = (preset: string): Date => {
     return now;
 };
 
+export const parseTimezoneOffset = (timezone: string): number =>
+    parseInt(timezone.replace("UTC", ""), 10);
+
 export const toUserLocal = (date: Date, timezone: string): Date => {
-    const offset = parseInt(timezone.replace("UTC", ""), 10);
+    const offset = parseTimezoneOffset(timezone);
     return new Date(date.getTime() + offset * 3600000);
 };
 

@@ -8,6 +8,8 @@ export const USER_REPOSITORY_LOGS = {
 export const TASK_REPOSITORY_LOGS = {
     FIND_BY_ID: "taskRepository.findById",
     FIND_ACTIVE_BY_USER: "taskRepository.findActiveByUser",
+    FIND_ACTIVE_BY_USER_AND_DATE: "taskRepository.findActiveByUserAndDate",
+    FIND_ACTIVE_DATES_FOR_WEEK: "taskRepository.findActiveDatesForWeek",
     CREATE: "taskRepository.create",
     UPDATE: "taskRepository.update",
     FIND_DUE_DELEGATIONS: "taskRepository.findDueDelegations",

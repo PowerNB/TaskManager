@@ -16,6 +16,7 @@ export const buildTaskTags = (task: TaskModel): string => {
     }
     if (task.due_time) tags.push(TASK_MESSAGE_FORMATS.TIME_TAG(formatTimeUTCHHmm(task.due_time)));
     if (task.delegated_to) tags.push(TASK_MESSAGE_FORMATS.DELEGATE_TAG(task.delegated_to));
+    tags.push(TASK_MESSAGE_FORMATS.ELO_TAG(task.elo_score));
     return tags.join(" ");
 };
 
