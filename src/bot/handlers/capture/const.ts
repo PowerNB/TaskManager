@@ -23,7 +23,15 @@ export const CAPTURE_TEXTS = {
     ADD_MORE: "+ Добавить ещё",
     OPEN_INBOX: "📥 Открыть инбокс",
     INBOX_EMPTY: "📥 Инбокс пуст. Добавь первую задачу!",
-    INBOX_HEADER: (count: number) => `📥 Инбокс — ${count} задач`,
+    INBOX_HEADER: (count: number) => {
+        const mod10 = count % 10;
+        const mod100 = count % 100;
+        const word = (mod100 >= 11 && mod100 <= 14) ? "задач"
+            : mod10 === 1 ? "задача"
+            : (mod10 >= 2 && mod10 <= 4) ? "задачи"
+            : "задач";
+        return `📥 Инбокс — ${count} ${word}`;
+    },
     INBOX_ADD_TASK: "+ Добавить задачу",
     TASK_DELETED: "🗑 Задача удалена",
     CAPTURE_TIMEOUT: "⏱ Сессия добавления задачи истекла (30 минут). Начни заново — /add",
