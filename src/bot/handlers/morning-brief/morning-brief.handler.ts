@@ -12,8 +12,9 @@ import {
     MORNING_BRIEF_SCENES,
     MORNING_BRIEF_EVENTS,
     ELO_PAIR_COUNT,
+    FREE_TIME_PRESETS,
 } from "./const.js";
-import { FREE_TIME_PRESETS, CATEGORY_LABELS, DURATION_LABELS } from "#root/types/brief.js";
+import { CATEGORY_LABELS, DURATION_LABELS } from "#root/types/labels.js";
 
 const formatTask = (task: TaskModel): string => {
     const parts = [

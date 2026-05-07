@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import { Api, InlineKeyboard } from "grammy";
 import { bullRedis } from "#root/infrastructure/redis.js";
 import { notificationService } from "#root/services/notification.service.js";
-import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/brief.js";
+import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/labels.js";
 import { formatTimeUTCHHmm } from "#root/utils/time.js";
 import { logger } from "#root/logger.js";
 import {

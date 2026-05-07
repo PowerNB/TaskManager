@@ -5,6 +5,12 @@ import { logger } from "#root/logger.js";
 
 export type SaturdayBriefType = "regular" | "monthly" | "quarterly";
 
+export const isMonthlyOrQuarterly = (type: SaturdayBriefType): boolean =>
+    type === "monthly" || type === "quarterly";
+
+export const isQuarterly = (type: SaturdayBriefType): boolean =>
+    type === "quarterly";
+
 export interface WeekStats {
     thisWeek: number;
     lastWeek: number | null;

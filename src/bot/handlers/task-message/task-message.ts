@@ -1,6 +1,6 @@
 import { Api, InlineKeyboard } from "grammy";
 import { TaskModel } from "#root/types/models.js";
-import { CATEGORY_LABELS, DURATION_LABELS } from "#root/types/brief.js";
+import { CATEGORY_LABELS, DURATION_LABELS } from "#root/types/labels.js";
 import { formatTimeUTCHHmm } from "#root/utils/time.js";
 import { TASK_MESSAGE_FORMATS } from "./const.js";
 

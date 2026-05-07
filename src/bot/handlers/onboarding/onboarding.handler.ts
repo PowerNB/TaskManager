@@ -196,9 +196,13 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
             }
             const isEditing = ctx.session.onboarding?.isEditing;
             const timezone = ONBOARDING_TEXTS.TIMEZONE_FORMAT(value);
+
             ctx.session.onboarding = { ...ctx.session.onboarding, timezone };
+
             await settingsService.setTimezone(BigInt(ctx.from.id), timezone);
+
             if (isEditing) { await sendSettingsMenu(ctx); return; }
+
             await sendBriefTimeStep(ctx);
             return;
         }

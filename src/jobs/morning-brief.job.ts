@@ -2,9 +2,9 @@ import { Worker } from "bullmq";
 import { Api, InlineKeyboard } from "grammy";
 import { bullRedis } from "#root/infrastructure/redis.js";
 import { morningBriefService } from "#root/services/brief/morning.service.js";
-import { FREE_TIME_PRESETS, MORNING_BRIEF_START_TEXT } from "#root/types/brief.js";
 import { logger } from "#root/logger.js";
 import { QUEUE_NAMES, MORNING_JOB_CALLBACKS, MORNING_JOB_PRESET_KEYS, JOBS_LOG } from "./const.js";
+import { FREE_TIME_PRESETS, MORNING_BRIEF_TEXTS } from "#root/bot/handlers/morning-brief/const.js";
 
 const sendBriefStart = async (send: (text: string, keyboard: InlineKeyboard) => Promise<void>): Promise<void> => {
     const keyboard = new InlineKeyboard();
@@ -15,7 +15,7 @@ const sendBriefStart = async (send: (text: string, keyboard: InlineKeyboard) => 
             keyboard.text(preset.label, MORNING_JOB_CALLBACKS.HOURS_VALUE(preset.minutes));
         }
     });
-    await send(MORNING_BRIEF_START_TEXT, keyboard);
+    await send(MORNING_BRIEF_TEXTS.HOW_MANY_HOURS, keyboard);
 };
 
 export const createMorningBriefWorker = (api: Api) => {

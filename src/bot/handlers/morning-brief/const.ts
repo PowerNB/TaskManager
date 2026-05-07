@@ -1,3 +1,11 @@
+export const FREE_TIME_PRESETS = {
+    HOUR_1: { label: "1 час", minutes: 60 },
+    HOURS_2: { label: "2 часа", minutes: 120 },
+    HOURS_4: { label: "4 часа", minutes: 240 },
+    HOURS_6: { label: "6 часов", minutes: 360 },
+    CUSTOM: { label: "Указать", minutes: 0 },
+} as const;
+
 export const MORNING_BRIEF_TEXTS = {
     HOW_MANY_HOURS: "Доброе утро! Сколько часов сегодня на задачи?",
     CUSTOM_HOURS_PROMPT: "Введи количество часов (например: 3 или 1.5):",

@@ -81,12 +81,12 @@ export const notificationService = {
     },
 
     markDone: async (taskId: string): Promise<void> => {
-        await taskRepository.update(taskId, { status: "DONE", completed_at: new Date() });
+        await taskRepository.update(taskId, { status: "DONE", completed_at: new Date(), last_activity_at: new Date() });
         logger.info({ taskId }, "notification: task marked done");
     },
 
     markDeleted: async (taskId: string): Promise<void> => {
-        await taskRepository.update(taskId, { status: "DELETED" });
+        await taskRepository.update(taskId, { status: "DELETED", last_activity_at: new Date() });
         logger.info({ taskId }, "notification: task marked deleted");
     },
 

@@ -1,9 +1,9 @@
 import { Worker } from "bullmq";
 import { Api, InlineKeyboard } from "grammy";
 import { bullRedis } from "#root/infrastructure/redis.js";
-import { saturdayBriefService, SaturdayBriefData } from "#root/services/brief/saturday.service.js";
+import { saturdayBriefService, SaturdayBriefData, isMonthlyOrQuarterly, isQuarterly } from "#root/services/brief/saturday.service.js";
 import { eloService } from "#root/services/elo.service.js";
-import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/brief.js";
+import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/labels.js";
 import { logger } from "#root/logger.js";
 import {
     QUEUE_NAMES,
@@ -48,7 +48,7 @@ const buildStatsText = (data: SaturdayBriefData): string => {
 type SendMessage = (text: string, keyboard?: InlineKeyboard) => Promise<void>;
 
 const sendSaturdayBrief = async (data: SaturdayBriefData, send: SendMessage): Promise<void> => {
-    if (data.type === "quarterly" && data.archivedTasks.length > 0) {
+    if (isQuarterly(data.type) && data.archivedTasks.length > 0) {
         const lines = [
             SATURDAY_JOB_TEXTS.QUARTERLY_ARCHIVE_HEADER,
             SATURDAY_JOB_TEXTS.QUARTERLY_ARCHIVE_INTRO,
@@ -59,7 +59,7 @@ const sendSaturdayBrief = async (data: SaturdayBriefData, send: SendMessage): Pr
         await saturdayBriefService.deleteArchivedTasks(data.archivedTasks.map((t) => t.id));
     }
 
-    if ((data.type === "monthly" || data.type === "quarterly") && data.frozenTasks.length > 0) {
+    if (isMonthlyOrQuarterly(data.type) && data.frozenTasks.length > 0) {
         const monthName = new Date().toLocaleString("ru-RU", { month: "long" });
         await send(SATURDAY_JOB_TEXTS.FROZEN_HEADER(monthName));
 
@@ -128,13 +128,16 @@ export const createSaturdayBriefWorker = (api: Api) => {
                     await saturdayBriefService.freezeStaleTask(task.id);
                 }
 
-                if (data.type === "monthly" || data.type === "quarterly") {
+                if (isMonthlyOrQuarterly(data.type)) {
                     for (const task of data.frozenTasks) {
                         await saturdayBriefService.archiveFrozenTask(task.id);
                     }
                 }
 
-                await sendEloPair(api, userId, user.id, 30);
+                const eloPairs = await eloService.getPairs(user.id, 1);
+                if (eloPairs.length > 0) {
+                    await sendEloPair(api, userId, user.id, 30);
+                }
 
                 logger.info({ userId, type: data.type }, JOBS_LOG.SATURDAY_BRIEF_SENT);
             }

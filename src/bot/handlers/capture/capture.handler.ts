@@ -25,7 +25,7 @@ import {
     TITLE_MAX_LENGTH,
     SEPARATOR,
 } from "./const.js";
-import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/brief.js";
+import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/labels.js";
 
 
 
