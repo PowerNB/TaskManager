@@ -3,17 +3,20 @@ import { TaskModel } from "#root/types/models.js";
 import { calcElo } from "#root/utils/elo.js";
 import { logger } from "#root/logger.js";
 
-const allPairsShuffled = (tasks: TaskModel[]): Array<[TaskModel, TaskModel]> => {
-    const pairs: Array<[TaskModel, TaskModel]> = [];
-    for (let i = 0; i < tasks.length; i++) {
-        for (let j = i + 1; j < tasks.length; j++) {
-            pairs.push([tasks[i], tasks[j]]);
-        }
+// Swiss round: sort tasks by elo_score, pair neighbours
+const buildSwissRound = (tasks: TaskModel[]): Array<[string, string]> => {
+    const sorted = [...tasks].sort((a, b) => b.elo_score - a.elo_score);
+    const pairs: Array<[string, string]> = [];
+    for (let i = 0; i + 1 < sorted.length; i += 2) {
+        pairs.push([sorted[i].id, sorted[i + 1].id]);
     }
-    return pairs.sort(() => Math.random() - 0.5);
+    return pairs;
 };
 
+export const swissTotalRounds = (n: number): number => Math.ceil(Math.log2(n));
+
 export const eloService = {
+    // Brief mode: random pairs from tasks without deadline
     getPairs: async (userId: bigint, count: number): Promise<Array<[TaskModel, TaskModel]>> => {
         const tasks = await taskRepository.findCandidatesForBrief(userId);
         logger.debug({ userId: userId.toString(), candidates: tasks.length, requested: count }, "elo: getPairs");
@@ -21,32 +24,41 @@ export const eloService = {
             logger.warn({ userId: userId.toString() }, "elo: not enough candidates for brief pairs");
             return [];
         }
-        const pairs = allPairsShuffled(tasks);
+        const shuffled = [...tasks].sort(() => Math.random() - 0.5);
+        const pairs: Array<[TaskModel, TaskModel]> = [];
+        for (let i = 0; i + 1 < shuffled.length; i += 2) {
+            pairs.push([shuffled[i], shuffled[i + 1]]);
+        }
         return pairs.slice(0, count);
     },
 
-    getTodayPairs: async (userId: bigint): Promise<Array<[TaskModel, TaskModel]>> => {
-        const tasks = await taskRepository.findTodayTasksForElo(userId);
-        logger.debug({ userId: userId.toString(), tasks: tasks.length }, "elo: getTodayPairs");
-        if (tasks.length < 2) {
-            logger.warn({ userId: userId.toString() }, "elo: not enough today tasks for elo session");
-            return [];
-        }
-        const pairs = allPairsShuffled(tasks);
-        logger.info({ userId: userId.toString(), pairs: pairs.length }, "elo: today session pairs built");
-        return pairs;
+    // Swiss mode: build first round, return task ids + pairs + round metadata
+    buildSwissSession: async (
+        userId: bigint,
+        fetchTasks: () => Promise<TaskModel[]>,
+    ): Promise<{ taskIds: string[]; pairs: Array<[string, string]>; round: number; totalRounds: number } | null> => {
+        const tasks = await fetchTasks();
+        if (tasks.length < 2) return null;
+        const totalRounds = swissTotalRounds(tasks.length);
+        const pairs = buildSwissRound(tasks);
+        logger.info({ userId: userId.toString(), tasks: tasks.length, pairs: pairs.length, totalRounds }, "elo: swiss session built");
+        return { taskIds: tasks.map(t => t.id), pairs, round: 1, totalRounds };
     },
 
-    getWeekPairs: async (userId: bigint, weekStart: Date, weekEnd: Date): Promise<Array<[TaskModel, TaskModel]>> => {
-        const tasks = await taskRepository.findWeekTasksForElo(userId, weekStart, weekEnd);
-        logger.debug({ userId: userId.toString(), tasks: tasks.length, weekStart, weekEnd }, "elo: getWeekPairs");
-        if (tasks.length < 2) {
-            logger.warn({ userId: userId.toString() }, "elo: not enough week tasks for elo session");
-            return [];
-        }
-        const pairs = allPairsShuffled(tasks).slice(0, 30);
-        logger.info({ userId: userId.toString(), pairs: pairs.length }, "elo: week session pairs built");
-        return pairs;
+    // Build next Swiss round: reload tasks by ids (scores updated), re-pair
+    buildNextRound: async (taskIds: string[]): Promise<Array<[string, string]>> => {
+        const tasks = await Promise.all(taskIds.map(id => taskRepository.findById(id)));
+        const valid = tasks.filter((t): t is TaskModel => t !== null);
+        if (valid.length < 2) return [];
+        return buildSwissRound(valid);
+    },
+
+    getTodayTasks: async (userId: bigint): Promise<TaskModel[]> => {
+        return taskRepository.findTodayTasksForElo(userId);
+    },
+
+    getWeekTasks: async (userId: bigint, weekStart: Date, weekEnd: Date): Promise<TaskModel[]> => {
+        return taskRepository.findWeekTasksForElo(userId, weekStart, weekEnd);
     },
 
     applyResult: async (winnerId: string, loserId: string): Promise<void> => {

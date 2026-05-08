@@ -57,7 +57,12 @@ export interface SessionData {
     rescheduleTaskId?: string;
     brief?: MorningBriefDraft;
     briefStartedAt?: number;
-    eloPairs?: Array<[string, string]>;
+    eloSession?: {
+        taskIds: string[];
+        pairs: Array<[string, string]>;
+        round: number;
+        totalRounds: number;
+    };
 }
 
 export type BotContext = Context & SessionFlavor<SessionData>;

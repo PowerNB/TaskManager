@@ -1,10 +1,12 @@
 export const ELO_TEXTS = {
     PRIORITIES_UPDATED: "✅ Приоритеты обновлены.",
-    PAIR_PROMPT: (current: number, total: number) =>
-        `Расставим приоритеты.\nЧто важнее прямо сейчас? (${current + 1}/${total})`,
+    PAIR_PROMPT: (pairNum: number, totalPairs: number, round: number, totalRounds: number) =>
+        `Раунд ${round}/${totalRounds} · Пара ${pairNum}/${totalPairs}\nЧто важнее прямо сейчас?`,
+    ROUND_COMPLETE: (round: number, totalRounds: number) =>
+        `✅ Раунд ${round} завершён. Начинаем раунд ${round + 1}/${totalRounds}…`,
     COMMAND_PROMPT: "Расставить приоритеты — выбери набор задач:",
-    NO_TASKS_TODAY: "На сегодня задач с дедлайном нет.",
-    NO_TASKS_WEEK: "На этой неделе задач с дедлайном нет.",
+    NO_TASKS_TODAY: "На сегодня задач без времени нет.",
+    NO_TASKS_WEEK: "На этой неделе задач нет.",
     NOT_ENOUGH: "Нужно минимум 2 задачи для сравнения.",
 } as const;
 
