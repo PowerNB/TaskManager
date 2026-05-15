@@ -3,6 +3,7 @@ import { run, RunnerHandle } from "@grammyjs/runner";
 import { bot } from "#root/bot/index.js";
 import { startJobs } from "#root/jobs/index.js";
 import { logger } from "#root/logger.js";
+import { BOT_COMMANDS } from "#root/bot/const.js";
 
 function onShutdown(cleanUp: () => Promise<void>) {
     let isShuttingDown = false;
@@ -26,13 +27,7 @@ try {
         await bot.stop();
     });
 
-    await bot.api.setMyCommands([
-        { command: "start", description: "Запустить бота" },
-        { command: "add", description: "Добавить задачу" },
-        { command: "inbox", description: "Мои задачи" },
-        { command: "elo", description: "Расставить приоритеты" },
-        { command: "settings", description: "Настройки" },
-    ]);
+    await bot.api.setMyCommands(BOT_COMMANDS);
 
     await startJobs(bot.api);
 

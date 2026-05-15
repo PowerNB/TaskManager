@@ -1,6 +1,38 @@
-export const TITLE_MAX_LENGTH = 200;
+export const TITLE_MAX_LENGTH = 500;
 
 export const SEPARATOR = "—";
+
+export const CAPTURE_DEFAULTS = {
+    TIMEZONE: "UTC+3",
+} as const;
+
+export const CAPTURE_LOG = {
+    CMD_ADD: "command /add",
+    CMD_INBOX: "command /inbox",
+    INBOX_OPEN_MENU: "inbox: open menu",
+    INBOX_SHOW_TODAY: "inbox: show today",
+    INBOX_SHOW_WEEK: "inbox: show week",
+    INBOX_SHOW_NO_DATE: "inbox: show no-date tasks",
+    INBOX_SHOW_ALL: "inbox: show all tasks",
+    INBOX_FILTER_DATE: "inbox: filter by date",
+    INBOX_TASK_DONE: "inbox: task done",
+    INBOX_TASK_DELETED: "inbox: task deleted",
+    INBOX_EDIT_STARTED: "inbox: edit started",
+    TASK_SAVED: "capture: task saved",
+    TITLE_TOO_LONG: "capture: title too long",
+} as const;
+
+export const CAPTURE_ICONS = {
+    DATE: "📅",
+    TIME: "⏰",
+    DELEGATE: "👤",
+} as const;
+
+export const CAPTURE_TAG_FORMATS = {
+    DATE: (date: string) => `${CAPTURE_ICONS.DATE} ${date}`,
+    TIME: (time: string) => `${CAPTURE_ICONS.TIME} ${time}`,
+    DELEGATE: (name: string) => `${CAPTURE_ICONS.DELEGATE} ${name}`,
+} as const;
 
 export const CAPTURE_TEXTS = {
     TITLE_PROMPT: "Что нужно сделать?",
@@ -28,8 +60,8 @@ export const CAPTURE_TEXTS = {
         const mod100 = count % 100;
         const word = (mod100 >= 11 && mod100 <= 14) ? "задач"
             : mod10 === 1 ? "задача"
-            : (mod10 >= 2 && mod10 <= 4) ? "задачи"
-            : "задач";
+                : (mod10 >= 2 && mod10 <= 4) ? "задачи"
+                    : "задач";
         return `📥 Инбокс — ${count} ${word}`;
     },
     INBOX_ADD_TASK: "+ Добавить задачу",
@@ -134,7 +166,7 @@ export const INBOX_PATTERNS = {
 } as const;
 
 export const INBOX_TEXTS = {
-    MENU_PROMPT: "📥 Инбокс — что показать?",
+    MENU_PROMPT: "📥 Инбокс",
     FOOTER_DATE: (dateLabel: string) => `Показываются задачи на ${dateLabel}`,
     FOOTER_WEEK: "Показываются задачи на эту неделю",
     FOOTER_NO_DATE: "Показываются задачи без даты",
@@ -152,6 +184,7 @@ export const INBOX_BUTTONS = {
     NO_DATE: "📋 Задачи без даты",
     ALL: "📂 Все задачи",
     BACK_TO_INBOX: "◀ Назад",
+    BACK_TO_MENU: "◀ Назад",
 } as const;
 
 const WEEKDAYS_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"] as const;

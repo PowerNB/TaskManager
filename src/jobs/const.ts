@@ -52,15 +52,20 @@ export const SATURDAY_JOB_CALLBACKS = {
     STALE_DELETE: (id: string) => `sat:stale:delete:${id}`,
 } as const;
 
+const ELO_JOB_ICONS = {
+    FIRST: "1️⃣",
+    SECOND: "2️⃣",
+} as const;
+
 export const ELO_JOB_TEXTS = {
     DONE: "✅ Приоритеты обновлены.",
     PROMPT: (pairCount: number) => `Расставим приоритеты.\nЧто важнее прямо сейчас? (1/${pairCount})`,
-    TASK_LINE: (a: string, b: string) => `\n\n1️⃣ ${a}\n2️⃣ ${b}`,
+    TASK_LINE: (a: string, b: string) => `\n\n${ELO_JOB_ICONS.FIRST} ${a}\n${ELO_JOB_ICONS.SECOND} ${b}`,
 } as const;
 
 export const ELO_JOB_BUTTONS = {
-    FIRST: "1️⃣ Первая",
-    SECOND: "2️⃣ Вторая",
+    FIRST: `${ELO_JOB_ICONS.FIRST} Первая`,
+    SECOND: `${ELO_JOB_ICONS.SECOND} Вторая`,
     SKIP: "— Пропустить",
 } as const;
 

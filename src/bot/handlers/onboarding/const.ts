@@ -68,6 +68,15 @@ export const ONBOARDING_PRESET_VALUES = {
     SKIP: "skip",
 } as const;
 
+export const ONBOARDING_LOG = {
+    CMD_START_EXISTING: "command /start: existing user",
+    STARTED: "onboarding: started",
+    TIMEZONE_SET: "onboarding: timezone set",
+    BRIEF_TIME_SET: "onboarding: brief time set",
+    QUIET_HOURS_SET: "onboarding: quiet hours set",
+    QUIET_HOURS_SKIPPED: "onboarding: quiet hours skipped",
+} as const;
+
 export const TIMEZONE_PRESETS = {
     UTC_PLUS_2: "UTC+2",
     UTC_PLUS_3: "UTC+3",

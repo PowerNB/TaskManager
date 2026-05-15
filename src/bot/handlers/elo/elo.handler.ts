@@ -2,9 +2,10 @@ import { Api, Bot, InlineKeyboard } from "grammy";
 import { BotContext } from "#root/types/context.js";
 import { eloService } from "#root/services/elo.service.js";
 import { captureService } from "#root/services/capture.service.js";
-import { ELO_TEXTS, ELO_BUTTONS, ELO_CALLBACKS, ELO_PATTERNS } from "./const.js";
+import { ELO_TEXTS, ELO_BUTTONS, ELO_CALLBACKS, ELO_PATTERNS, ELO_LOG } from "./const.js";
 import { logger } from "#root/logger.js";
 import { getWeekBounds } from "#root/utils/time.js";
+import { buildProgressBar } from "#root/utils/progress.js";
 import { TaskModel } from "#root/types/models.js";
 
 // --- Brief mode (random pairs, no session) ---
@@ -17,7 +18,7 @@ const buildKeyboard = (idA: string, idB: string, current: number, total: number)
         .text(ELO_BUTTONS.SKIP, ELO_CALLBACKS.SKIP(current, total));
 
 const buildBriefText = (titleA: string, titleB: string, current: number, total: number): string =>
-    `${ELO_TEXTS.PAIR_PROMPT(current + 1, total, 1, 1)}\n\n1️⃣ ${titleA}\n2️⃣ ${titleB}`;
+    `${ELO_TEXTS.PAIR_PROMPT(current + 1, total, 1, 1, buildProgressBar(current, total))}\n\n${ELO_TEXTS.PAIR_TASKS(titleA, titleB)}`;
 
 const sendPair = async (
     userId: bigint,
@@ -42,7 +43,7 @@ const sendPair = async (
 
 export const startEloSession = async (ctx: BotContext, pairCount: number): Promise<void> => {
     const userId = BigInt(ctx.from!.id);
-    logger.debug({ userId: ctx.from!.id, pairCount }, "elo session started");
+    logger.debug({ userId: ctx.from!.id, pairCount }, ELO_LOG.SESSION_STARTED_BRIEF);
     await sendPair(userId, 0, pairCount, (text, keyboard) =>
         ctx.reply(text, { reply_markup: keyboard }),
     );
@@ -75,8 +76,11 @@ const buildCmdText = (
     totalPairs: number,
     round: number,
     totalRounds: number,
-): string =>
-    `${ELO_TEXTS.PAIR_PROMPT(pairIndex + 1, totalPairs, round, totalRounds)}\n\n1️⃣ ${titleA}\n2️⃣ ${titleB}`;
+): string => {
+    const donePairs = (round - 1) * totalPairs + pairIndex;
+    const allPairs = totalRounds * totalPairs;
+    return `${ELO_TEXTS.PAIR_PROMPT(pairIndex + 1, totalPairs, round, totalRounds, buildProgressBar(donePairs, allPairs))}\n\n${ELO_TEXTS.PAIR_TASKS(titleA, titleB)}`;
+};
 
 const startSwissSession = async (
     ctx: BotContext,
@@ -86,13 +90,13 @@ const startSwissSession = async (
 ): Promise<void> => {
     const session = await eloService.buildSwissSession(userId, fetchTasks);
     if (!session) {
-        logger.warn({ userId: userId.toString() }, "elo: not enough tasks for swiss session");
-        await ctx.reply(noTasksText);
+        logger.warn({ userId: userId.toString() }, ELO_LOG.NOT_ENOUGH_TASKS);
+        await ctx.editMessageText(noTasksText);
         return;
     }
 
     ctx.session.eloSession = session;
-    logger.info({ userId: userId.toString(), tasks: session.taskIds.length, totalRounds: session.totalRounds }, "elo: swiss session started");
+    logger.info({ userId: userId.toString(), tasks: session.taskIds.length, totalRounds: session.totalRounds }, ELO_LOG.SESSION_STARTED);
 
     const [idA, idB] = session.pairs[0];
     const [taskA, taskB] = await Promise.all([
@@ -101,11 +105,11 @@ const startSwissSession = async (
     ]);
     if (!taskA || !taskB) {
         ctx.session.eloSession = undefined;
-        await ctx.reply(ELO_TEXTS.PRIORITIES_UPDATED);
+        await ctx.editMessageText(ELO_TEXTS.PRIORITIES_UPDATED);
         return;
     }
 
-    await ctx.reply(
+    await ctx.editMessageText(
         buildCmdText(taskA.title, taskB.title, 0, session.pairs.length, session.round, session.totalRounds),
         { reply_markup: buildCmdKeyboard(0) },
     );
@@ -114,7 +118,7 @@ const startSwissSession = async (
 const advanceSwiss = async (ctx: BotContext, nextPairIndex: number): Promise<void> => {
     const session = ctx.session.eloSession;
     if (!session) {
-        await ctx.reply(ELO_TEXTS.PRIORITIES_UPDATED);
+        await ctx.editMessageText(ELO_TEXTS.PRIORITIES_UPDATED, { reply_markup: new InlineKeyboard() });
         return;
     }
 
@@ -127,21 +131,21 @@ const advanceSwiss = async (ctx: BotContext, nextPairIndex: number): Promise<voi
         ]);
         if (!taskA || !taskB) {
             ctx.session.eloSession = undefined;
-            await ctx.reply(ELO_TEXTS.PRIORITIES_UPDATED);
+            await ctx.editMessageText(ELO_TEXTS.PRIORITIES_UPDATED, { reply_markup: new InlineKeyboard() });
             return;
         }
-        await ctx.reply(
+        await ctx.editMessageText(
             buildCmdText(taskA.title, taskB.title, nextPairIndex, session.pairs.length, session.round, session.totalRounds),
             { reply_markup: buildCmdKeyboard(nextPairIndex) },
         );
         return;
     }
 
-    // Round finished
+    // Round finished — session complete
     if (session.round >= session.totalRounds) {
         ctx.session.eloSession = undefined;
-        logger.info({ round: session.round, totalRounds: session.totalRounds }, "elo: swiss session complete");
-        await ctx.reply(ELO_TEXTS.PRIORITIES_UPDATED);
+        logger.info({ round: session.round, totalRounds: session.totalRounds }, ELO_LOG.SESSION_COMPLETE);
+        await ctx.editMessageText(ELO_TEXTS.PRIORITIES_UPDATED, { reply_markup: new InlineKeyboard() });
         return;
     }
 
@@ -150,14 +154,12 @@ const advanceSwiss = async (ctx: BotContext, nextPairIndex: number): Promise<voi
     const nextPairs = await eloService.buildNextRound(session.taskIds);
     if (nextPairs.length === 0) {
         ctx.session.eloSession = undefined;
-        await ctx.reply(ELO_TEXTS.PRIORITIES_UPDATED);
+        await ctx.editMessageText(ELO_TEXTS.PRIORITIES_UPDATED, { reply_markup: new InlineKeyboard() });
         return;
     }
 
     ctx.session.eloSession = { ...session, pairs: nextPairs, round: nextRound };
-    logger.info({ round: nextRound, pairs: nextPairs.length }, "elo: next swiss round built");
-
-    await ctx.reply(ELO_TEXTS.ROUND_COMPLETE(session.round, session.totalRounds));
+    logger.info({ round: nextRound, pairs: nextPairs.length }, ELO_LOG.NEXT_ROUND_BUILT);
 
     const [idA, idB] = nextPairs[0];
     const [taskA, taskB] = await Promise.all([
@@ -166,10 +168,10 @@ const advanceSwiss = async (ctx: BotContext, nextPairIndex: number): Promise<voi
     ]);
     if (!taskA || !taskB) {
         ctx.session.eloSession = undefined;
-        await ctx.reply(ELO_TEXTS.PRIORITIES_UPDATED);
+        await ctx.editMessageText(ELO_TEXTS.PRIORITIES_UPDATED, { reply_markup: new InlineKeyboard() });
         return;
     }
-    await ctx.reply(
+    await ctx.editMessageText(
         buildCmdText(taskA.title, taskB.title, 0, nextPairs.length, nextRound, session.totalRounds),
         { reply_markup: buildCmdKeyboard(0) },
     );
@@ -177,7 +179,7 @@ const advanceSwiss = async (ctx: BotContext, nextPairIndex: number): Promise<voi
 
 export const registerEloHandler = (bot: Bot<BotContext>) => {
     bot.command("elo", async (ctx) => {
-        logger.debug({ userId: ctx.from!.id }, "command /elo");
+        logger.debug({ userId: ctx.from!.id }, ELO_LOG.CMD_ELO);
         const keyboard = new InlineKeyboard()
             .text(ELO_BUTTONS.TODAY, ELO_CALLBACKS.START_TODAY)
             .row()
@@ -189,7 +191,7 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
         await ctx.answerCallbackQuery();
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         const userId = BigInt(ctx.from.id);
-        logger.debug({ userId: ctx.from.id }, "elo: start today session");
+        logger.debug({ userId: ctx.from.id }, ELO_LOG.START_TODAY);
         await startSwissSession(
             ctx,
             () => eloService.getTodayTasks(userId),
@@ -202,7 +204,7 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
         await ctx.answerCallbackQuery();
         await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
         const userId = BigInt(ctx.from.id);
-        logger.debug({ userId: ctx.from.id }, "elo: start week session");
+        logger.debug({ userId: ctx.from.id }, ELO_LOG.START_WEEK);
         const { weekStart, weekEnd } = getWeekBounds();
         await startSwissSession(
             ctx,
@@ -214,7 +216,6 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(ELO_PATTERNS.CMD_PICK, async (ctx) => {
         await ctx.answerCallbackQuery();
-        await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
 
         const current = parseInt(ctx.match[1], 10);
         const winnerIndex = parseInt(ctx.match[2], 10) as 0 | 1;
@@ -229,7 +230,7 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
 
         const winnerId = winnerIndex === 0 ? idA : idB;
         const loserId = winnerIndex === 0 ? idB : idA;
-        logger.info({ userId: ctx.from.id, winnerId, loserId, current, round: session?.round }, "elo: cmd pair picked");
+        logger.info({ userId: ctx.from.id, winnerId, loserId, current, round: session?.round }, ELO_LOG.CMD_PAIR_PICKED);
         await eloService.applyResult(winnerId, loserId);
 
         await advanceSwiss(ctx, current + 1);
@@ -237,10 +238,9 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(ELO_PATTERNS.CMD_SKIP, async (ctx) => {
         await ctx.answerCallbackQuery();
-        await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
 
         const current = parseInt(ctx.match[1], 10);
-        logger.info({ userId: ctx.from.id, current, round: ctx.session.eloSession?.round }, "elo: cmd pair skipped");
+        logger.info({ userId: ctx.from.id, current, round: ctx.session.eloSession?.round }, ELO_LOG.CMD_PAIR_SKIPPED);
 
         await advanceSwiss(ctx, current + 1);
     });
@@ -255,7 +255,7 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
         const current = parseInt(ctx.match[3], 10);
         const total = parseInt(ctx.match[4], 10);
 
-        logger.info({ userId: ctx.from.id, winnerId, loserId, current, total }, "elo: pair picked");
+        logger.info({ userId: ctx.from.id, winnerId, loserId, current, total }, ELO_LOG.PAIR_PICKED);
         await eloService.applyResult(winnerId, loserId);
 
         const userId = BigInt(ctx.from.id);
@@ -270,7 +270,7 @@ export const registerEloHandler = (bot: Bot<BotContext>) => {
 
         const current = parseInt(ctx.match[1], 10);
         const total = parseInt(ctx.match[2], 10);
-        logger.info({ userId: ctx.from.id, current, total }, "elo: pair skipped");
+        logger.info({ userId: ctx.from.id, current, total }, ELO_LOG.PAIR_SKIPPED);
         const userId = BigInt(ctx.from.id);
 
         await sendPair(userId, current + 1, total, (text, keyboard) =>

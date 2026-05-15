@@ -6,6 +6,15 @@ export const FREE_TIME_PRESETS = {
     CUSTOM: { label: "Указать", minutes: 0 },
 } as const;
 
+const MORNING_BRIEF_ICONS = {
+    CHECK: "✅",
+    MANDATORY: "📌",
+    CANDIDATE: "📋",
+    INBOX: "📥",
+    SKIP: "⏭",
+    WARNING: "⚠️",
+} as const;
+
 export const MORNING_BRIEF_TEXTS = {
     HOW_MANY_HOURS: "Доброе утро! Сколько часов сегодня на задачи?",
     CUSTOM_HOURS_PROMPT: "Введи количество часов (например: 3 или 1.5):",
@@ -13,16 +22,16 @@ export const MORNING_BRIEF_TEXTS = {
     NO_TASKS_TODAY: "Сегодня нет обязательных задач и нет задач для подбора. Удачного дня!",
     NO_CANDIDATES: "Больше нет подходящих задач.",
     ONLY_MANDATORY: "Нет, только обязательные",
-    ADD_TO_PLAN: "✅ Добавить в план",
-    SKIP_TASK: "⏭ Пропустить",
-    FINISH_PLAN: "✅ Готово",
+    ADD_TO_PLAN: `${MORNING_BRIEF_ICONS.CHECK} Добавить в план`,
+    SKIP_TASK: `${MORNING_BRIEF_ICONS.SKIP} Пропустить`,
+    FINISH_PLAN: `${MORNING_BRIEF_ICONS.CHECK} Готово`,
     YES: "Да",
-    PLAN_HEADER: "✅ План на сегодня\n",
-    MANDATORY_SECTION: "📌 Обязательные:",
-    OPTIONAL_SECTION: "\n📋 Дополнительные:",
+    PLAN_HEADER: `${MORNING_BRIEF_ICONS.CHECK} План на сегодня\n`,
+    MANDATORY_SECTION: `${MORNING_BRIEF_ICONS.MANDATORY} Обязательные:`,
+    OPTIONAL_SECTION: `\n${MORNING_BRIEF_ICONS.CANDIDATE} Дополнительные:`,
     PLAN_TOTAL: (used: string, free: string) => `\nИтого: ${used} из ${free} запланировано.`,
     PLAN_GOOD_LUCK: "Удачного дня!",
-    OVERLOADED_HEADER: "⚠️ Обязательные задачи превышают свободное время.\n",
+    OVERLOADED_HEADER: `${MORNING_BRIEF_ICONS.WARNING} Обязательные задачи превышают свободное время.\n`,
     OVERLOADED_FREE: (time: string) => `Свободно: ${time}`,
     OVERLOADED_MANDATORY: (time: string) => `Обязательные: ${time}\n`,
     OVERLOADED_FOOTER: "\nЭто твой план на сегодня. Удачи!",
@@ -31,15 +40,21 @@ export const MORNING_BRIEF_TEXTS = {
     MANDATORY_REMAINING: (time: string) => `Осталось: ${time}\n`,
     MANDATORY_QUESTION: "Подберём задачи на оставшееся время?",
     CANDIDATE_REMAINING: (time: string) => `Осталось: ${time}`,
-    INBOX_NOT_IMPLEMENTED: "📥 Инбокс пока не реализован.",
+    INBOX_NOT_IMPLEMENTED: `${MORNING_BRIEF_ICONS.INBOX} Инбокс пока не реализован.`,
     SEPARATOR: "—",
     TIME_PREFIX: "в",
-    MANDATORY_TASK_PREFIX: "📌",
-    CANDIDATE_TASK_PREFIX: "📋",
+    MANDATORY_TASK_PREFIX: MORNING_BRIEF_ICONS.MANDATORY,
+    CANDIDATE_TASK_PREFIX: MORNING_BRIEF_ICONS.CANDIDATE,
     LIST_ITEM_PREFIX: "—",
     TASK_FORMAT: (title: string, duration: string) => `${title} — ${duration}`,
     CANDIDATE_MESSAGE: (remaining: string, title: string, tags: string) =>
-        `Осталось: ${remaining}\n\n📋 ${title}\n${tags}`,
+        `Осталось: ${remaining}\n\n${MORNING_BRIEF_ICONS.CANDIDATE} ${title}\n${tags}`,
+} as const;
+
+export const MORNING_BRIEF_LOG = {
+    FINAL_PLAN_SENT: "morning brief: final plan sent",
+    HOURS_SELECTED: "morning brief: hours selected",
+    TASK_ADDED: "morning brief: task added to plan",
 } as const;
 
 export const ELO_PAIR_COUNT = 10;

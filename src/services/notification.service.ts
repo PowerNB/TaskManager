@@ -3,6 +3,7 @@ import { userRepository } from "#root/repositories/user.repository.js";
 import { canSend, getNowTime } from "#root/utils/time.js";
 import { TaskModel } from "#root/types/models.js";
 import { logger } from "#root/logger.js";
+import { NOTIFICATION_SERVICE_LOG } from "./const.js";
 
 export interface DelegationNotification {
     task: TaskModel;
@@ -33,7 +34,7 @@ export const notificationService = {
             result.push({ task, userId: task.userId, canSendNow });
         }
 
-        logger.debug({ count: result.length }, "due delegations fetched");
+        logger.debug({ count: result.length }, NOTIFICATION_SERVICE_LOG.DELEGATIONS_FETCHED);
         return result;
     },
 
@@ -51,7 +52,7 @@ export const notificationService = {
             result.push({ task, userId: task.userId, canSendNow, timezone: user.timezone });
         }
 
-        logger.debug({ count: result.length }, "due date deadlines fetched");
+        logger.debug({ count: result.length }, NOTIFICATION_SERVICE_LOG.DATE_DEADLINES_FETCHED);
         return result;
     },
 
@@ -69,7 +70,7 @@ export const notificationService = {
             result.push({ task, userId: task.userId, canSendNow, timezone: user.timezone });
         }
 
-        logger.debug({ count: result.length }, "morning time deadlines fetched");
+        logger.debug({ count: result.length }, NOTIFICATION_SERVICE_LOG.MORNING_TIME_DEADLINES_FETCHED);
         return result;
     },
 
@@ -89,24 +90,24 @@ export const notificationService = {
             result.push({ task, userId: task.userId, canSendNow: true, timezone: user.timezone });
         }
 
-        logger.debug({ count: result.length }, "due time deadlines fetched");
+        logger.debug({ count: result.length }, NOTIFICATION_SERVICE_LOG.TIME_DEADLINES_FETCHED);
         return result;
     },
 
     snoozeDelegation: async (taskId: string): Promise<void> => {
         const remindAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
         await taskRepository.update(taskId, { remind_delegation_at: remindAt });
-        logger.info({ taskId }, "delegation snoozed");
+        logger.info({ taskId }, NOTIFICATION_SERVICE_LOG.DELEGATION_SNOOZED);
     },
 
     markDone: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "DONE", completed_at: new Date(), last_activity_at: new Date() });
-        logger.info({ taskId }, "notification: task marked done");
+        logger.info({ taskId }, NOTIFICATION_SERVICE_LOG.TASK_DONE);
     },
 
     markDeleted: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "DELETED", last_activity_at: new Date() });
-        logger.info({ taskId }, "notification: task marked deleted");
+        logger.info({ taskId }, NOTIFICATION_SERVICE_LOG.TASK_DELETED);
     },
 
     takeBack: async (taskId: string): Promise<void> => {
@@ -116,11 +117,11 @@ export const notificationService = {
             remind_delegation_at: null,
             last_activity_at: new Date(),
         });
-        logger.info({ taskId }, "task taken back from delegation");
+        logger.info({ taskId }, NOTIFICATION_SERVICE_LOG.TASK_TAKEN_BACK);
     },
 
     reschedule: async (taskId: string, date: Date): Promise<void> => {
         await taskRepository.update(taskId, { due_date: date, last_activity_at: new Date() });
-        logger.info({ taskId }, "task rescheduled");
+        logger.info({ taskId }, NOTIFICATION_SERVICE_LOG.TASK_RESCHEDULED);
     },
 };

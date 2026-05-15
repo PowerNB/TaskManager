@@ -10,6 +10,7 @@ import {
     ONBOARDING_PATTERNS,
     ONBOARDING_SCENES,
     ONBOARDING_PRESET_VALUES,
+    ONBOARDING_LOG,
     TIMEZONE_PRESETS,
     BRIEF_TIME_PRESETS,
     QUIET_HOURS_PRESETS,
@@ -117,7 +118,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
         const user = await settingsService.findUser(userId);
 
         if (user && ctx.session.scene === null) {
-            logger.debug({ userId: ctx.from!.id }, "command /start: existing user");
+            logger.debug({ userId: ctx.from!.id }, ONBOARDING_LOG.CMD_START_EXISTING);
             await sendMainMenu(ctx);
             return;
         }
@@ -125,7 +126,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
         if (await resumeOnboarding(ctx)) return;
 
         await settingsService.ensureUser(userId, ctx.from!.username ?? null);
-        logger.info({ userId: ctx.from!.id }, "onboarding: started");
+        logger.info({ userId: ctx.from!.id }, ONBOARDING_LOG.STARTED);
         await ctx.reply(ONBOARDING_TEXTS.WELCOME);
         ctx.session.onboarding = {};
         await sendTimezoneStep(ctx);
@@ -143,7 +144,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
         const isEditing = ctx.session.onboarding?.isEditing;
         ctx.session.onboarding = { ...ctx.session.onboarding, timezone: match };
         await settingsService.setTimezone(BigInt(ctx.from.id), match);
-        logger.info({ userId: ctx.from.id, timezone: match }, "onboarding: timezone set");
+        logger.info({ userId: ctx.from.id, timezone: match }, ONBOARDING_LOG.TIMEZONE_SET);
 
         if (isEditing) { await sendSettingsMenu(ctx); return; }
         await sendBriefTimeStep(ctx);
@@ -168,7 +169,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
         const isEditing = ctx.session.onboarding?.isEditing;
         ctx.session.onboarding = { ...ctx.session.onboarding, brief_time: match };
         await settingsService.setBriefTime(BigInt(ctx.from.id), match);
-        logger.info({ userId: ctx.from.id, briefTime: match }, "onboarding: brief time set");
+        logger.info({ userId: ctx.from.id, briefTime: match }, ONBOARDING_LOG.BRIEF_TIME_SET);
 
         if (isEditing) { await sendSettingsMenu(ctx); return; }
         await sendQuietHoursStep(ctx);
@@ -182,7 +183,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
         if (match === ONBOARDING_PRESET_VALUES.SKIP) {
             ctx.session.onboarding = { ...ctx.session.onboarding, quiet_hours_from: null, quiet_hours_to: null };
             await settingsService.setQuietHours(BigInt(ctx.from.id), null, null);
-            logger.info({ userId: ctx.from.id }, "onboarding: quiet hours skipped");
+            logger.info({ userId: ctx.from.id }, ONBOARDING_LOG.QUIET_HOURS_SKIPPED);
             if (isEditing) { await sendSettingsMenu(ctx); return; }
             await sendCompletionStep(ctx);
             return;
@@ -200,7 +201,7 @@ export const registerOnboardingHandler = (bot: Bot<BotContext>) => {
 
         ctx.session.onboarding = { ...ctx.session.onboarding, quiet_hours_from: from, quiet_hours_to: to };
         await settingsService.setQuietHours(BigInt(ctx.from.id), from, to);
-        logger.info({ userId: ctx.from.id, from, to }, "onboarding: quiet hours set");
+        logger.info({ userId: ctx.from.id, from, to }, ONBOARDING_LOG.QUIET_HOURS_SET);
         if (isEditing) { await sendSettingsMenu(ctx); return; }
         await sendCompletionStep(ctx);
     });

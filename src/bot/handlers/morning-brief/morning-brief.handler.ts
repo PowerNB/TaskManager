@@ -11,6 +11,7 @@ import {
     MORNING_BRIEF_PATTERNS,
     MORNING_BRIEF_SCENES,
     MORNING_BRIEF_EVENTS,
+    MORNING_BRIEF_LOG,
     ELO_PAIR_COUNT,
     FREE_TIME_PRESETS,
     BRIEF_TIMEOUT_MS,
@@ -77,7 +78,7 @@ const sendNextCandidate = async (ctx: BotContext, candidates: TaskModel[], idx: 
 };
 
 const sendFinalPlan = async (ctx: BotContext) => {
-    logger.info({ userId: ctx.from!.id }, "morning brief: final plan sent");
+    logger.info({ userId: ctx.from!.id }, MORNING_BRIEF_LOG.FINAL_PLAN_SENT);
     const brief = ctx.session.brief ?? {};
     const freeMinutes = brief.freeMinutes ?? 0;
     const mandatoryMinutes = brief.mandatoryMinutes ?? 0;
@@ -147,7 +148,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(MORNING_BRIEF_PATTERNS.HOURS, async (ctx) => {
         await ctx.answerCallbackQuery();
         const value = ctx.match[1];
-        logger.debug({ userId: ctx.from!.id, value }, "morning brief: hours selected");
+        logger.debug({ userId: ctx.from!.id, value }, MORNING_BRIEF_LOG.HOURS_SELECTED);
 
         if (!ctx.session.briefStartedAt) ctx.session.briefStartedAt = Date.now();
 
@@ -167,7 +168,7 @@ export const registerMorningBriefHandler = (bot: Bot<BotContext>) => {
         await ctx.answerCallbackQuery();
         if (await resetExpiredBrief(ctx)) return;
         const taskId = ctx.match[1];
-        logger.info({ userId: ctx.from!.id, taskId }, "morning brief: task added to plan");
+        logger.info({ userId: ctx.from!.id, taskId }, MORNING_BRIEF_LOG.TASK_ADDED);
         const brief = ctx.session.brief ?? {};
         const plannedTaskIds = [...(brief.plannedTaskIds ?? []), taskId];
 

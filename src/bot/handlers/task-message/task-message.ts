@@ -2,7 +2,7 @@ import { Api, InlineKeyboard } from "grammy";
 import { TaskModel } from "#root/types/models.js";
 import { CATEGORY_LABELS, DURATION_LABELS } from "#root/types/labels.js";
 import { formatTimeUTCHHmm } from "#root/utils/time.js";
-import { TASK_MESSAGE_FORMATS } from "./const.js";
+import { ATTACHMENT_TYPES, PARSE_MODE, TASK_MESSAGE_FORMATS } from "./const.js";
 
 export const buildTaskTags = (task: TaskModel): string => {
     const tags: string[] = [];
@@ -27,24 +27,24 @@ export const sendTaskMessage = async (
     keyboard?: InlineKeyboard,
 ): Promise<void> => {
     const caption = TASK_MESSAGE_FORMATS.CAPTION(task.title, buildTaskTags(task));
-    const options = keyboard ? { reply_markup: keyboard, parse_mode: "HTML" as const } : { parse_mode: "HTML" as const };
+    const options = keyboard ? { reply_markup: keyboard, parse_mode: PARSE_MODE } : { parse_mode: PARSE_MODE };
 
     if (task.attachment_file_id && task.attachment_type) {
         const fileId = task.attachment_file_id;
         switch (task.attachment_type) {
-            case "photo":
+            case ATTACHMENT_TYPES.PHOTO:
                 await api.sendPhoto(chatId, fileId, { caption, ...options });
                 return;
-            case "video":
+            case ATTACHMENT_TYPES.VIDEO:
                 await api.sendVideo(chatId, fileId, { caption, ...options });
                 return;
-            case "document":
+            case ATTACHMENT_TYPES.DOCUMENT:
                 await api.sendDocument(chatId, fileId, { caption, ...options });
                 return;
-            case "audio":
+            case ATTACHMENT_TYPES.AUDIO:
                 await api.sendAudio(chatId, fileId, { caption, ...options });
                 return;
-            case "voice":
+            case ATTACHMENT_TYPES.VOICE:
                 await api.sendVoice(chatId, fileId, { caption, ...options });
                 return;
         }

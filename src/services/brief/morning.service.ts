@@ -3,6 +3,7 @@ import { taskRepository } from "#root/repositories/task.repository.js";
 import { canSend, getNowTime, toUserLocal } from "#root/utils/time.js";
 import { TaskModel, UserModel } from "#root/types/models.js";
 import { logger } from "#root/logger.js";
+import { MORNING_SERVICE_LOG } from "../const.js";
 
 export const DURATION_MINUTES: Record<string, number> = {
     MIN_5: 5,
@@ -57,7 +58,7 @@ export const morningBriefService = {
             result.push({ user });
         }
 
-        logger.debug({ count: result.length }, "users due for brief fetched");
+        logger.debug({ count: result.length }, MORNING_SERVICE_LOG.USERS_FETCHED);
         return result;
     },
 
@@ -81,7 +82,7 @@ export const morningBriefService = {
 
     markBriefSent: async (userId: bigint): Promise<void> => {
         await userRepository.update(userId, { last_brief_sent_at: new Date() });
-        logger.info({ userId: String(userId) }, "brief marked sent");
+        logger.info({ userId: String(userId) }, MORNING_SERVICE_LOG.BRIEF_SENT);
     },
 
     getTasksByIds: async (ids: string[]): Promise<(TaskModel | null)[]> => {

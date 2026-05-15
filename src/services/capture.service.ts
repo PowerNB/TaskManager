@@ -2,6 +2,7 @@ import { taskRepository } from "#root/repositories/task.repository.js";
 import { TaskModel } from "#root/types/models.js";
 import { Category, DurationTag } from "#root/types/enums.js";
 import { logger } from "#root/logger.js";
+import { CAPTURE_SERVICE_LOG } from "./const.js";
 
 interface CreateTaskParams {
     userId: bigint;
@@ -47,7 +48,7 @@ export const captureService = {
             attachment_file_id: attachment_file_id ?? null,
             attachment_type: attachment_type ?? null,
         });
-        logger.info({ taskId: task.id, userId: String(userId) }, "task created");
+        logger.info({ taskId: task.id, userId: String(userId) }, CAPTURE_SERVICE_LOG.TASK_CREATED);
         return task;
     },
 
@@ -56,30 +57,30 @@ export const captureService = {
     },
 
     getTasksByDate: async (userId: bigint, date: Date): Promise<TaskModel[]> => {
-        logger.debug({ userId: String(userId), date }, "inbox: loading tasks for date");
+        logger.debug({ userId: String(userId), date }, CAPTURE_SERVICE_LOG.INBOX_LOADING_DATE);
         const tasks = await taskRepository.findActiveByUserAndDate(userId, date);
-        logger.debug({ userId: String(userId), count: tasks.length }, "inbox: tasks for date loaded");
+        logger.debug({ userId: String(userId), count: tasks.length }, CAPTURE_SERVICE_LOG.INBOX_DATE_LOADED);
         return tasks;
     },
 
     getActiveDatesForWeek: async (userId: bigint, weekStart: Date, weekEnd: Date): Promise<Date[]> => {
-        logger.debug({ userId: String(userId), weekStart, weekEnd }, "inbox: loading active dates for week");
+        logger.debug({ userId: String(userId), weekStart, weekEnd }, CAPTURE_SERVICE_LOG.INBOX_LOADING_DATES);
         const dates = await taskRepository.findActiveDatesForWeek(userId, weekStart, weekEnd);
-        logger.debug({ userId: String(userId), count: dates.length }, "inbox: active dates for week loaded");
+        logger.debug({ userId: String(userId), count: dates.length }, CAPTURE_SERVICE_LOG.INBOX_DATES_LOADED);
         return dates;
     },
 
     getWeekTasks: async (userId: bigint, weekStart: Date, weekEnd: Date): Promise<TaskModel[]> => {
-        logger.debug({ userId: String(userId), weekStart, weekEnd }, "inbox: loading week tasks");
+        logger.debug({ userId: String(userId), weekStart, weekEnd }, CAPTURE_SERVICE_LOG.INBOX_LOADING_WEEK);
         const tasks = await taskRepository.findActiveByUserInRange(userId, weekStart, weekEnd);
-        logger.debug({ userId: String(userId), count: tasks.length }, "inbox: week tasks loaded");
+        logger.debug({ userId: String(userId), count: tasks.length }, CAPTURE_SERVICE_LOG.INBOX_WEEK_LOADED);
         return tasks;
     },
 
     getNoDateTasks: async (userId: bigint): Promise<TaskModel[]> => {
-        logger.debug({ userId: String(userId) }, "inbox: loading no-date tasks");
+        logger.debug({ userId: String(userId) }, CAPTURE_SERVICE_LOG.INBOX_LOADING_NO_DATE);
         const tasks = await taskRepository.findActiveNoDate(userId);
-        logger.debug({ userId: String(userId), count: tasks.length }, "inbox: no-date tasks loaded");
+        logger.debug({ userId: String(userId), count: tasks.length }, CAPTURE_SERVICE_LOG.INBOX_NO_DATE_LOADED);
         return tasks;
     },
 
@@ -89,7 +90,7 @@ export const captureService = {
 
     updateTask: async (taskId: string, params: UpdateTaskParams): Promise<TaskModel> => {
         const task = await taskRepository.update(taskId, { ...params, last_activity_at: new Date() });
-        logger.info({ taskId }, "task updated");
+        logger.info({ taskId }, CAPTURE_SERVICE_LOG.TASK_UPDATED);
         return task;
     },
 
@@ -99,7 +100,7 @@ export const captureService = {
             completed_at: new Date(),
             last_activity_at: new Date(),
         });
-        logger.info({ taskId }, "task marked done");
+        logger.info({ taskId }, CAPTURE_SERVICE_LOG.TASK_DONE);
         return task;
     },
 
@@ -108,7 +109,7 @@ export const captureService = {
             status: "DELETED",
             last_activity_at: new Date(),
         });
-        logger.info({ taskId }, "task marked deleted");
+        logger.info({ taskId }, CAPTURE_SERVICE_LOG.TASK_DELETED);
         return task;
     },
 };

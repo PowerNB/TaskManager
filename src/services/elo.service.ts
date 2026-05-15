@@ -2,6 +2,7 @@ import { taskRepository } from "#root/repositories/task.repository.js";
 import { TaskModel } from "#root/types/models.js";
 import { calcElo } from "#root/utils/elo.js";
 import { logger } from "#root/logger.js";
+import { ELO_SERVICE_LOG } from "./const.js";
 
 // Swiss round: sort tasks by elo_score, pair neighbours
 const buildSwissRound = (tasks: TaskModel[]): Array<[string, string]> => {
@@ -19,9 +20,9 @@ export const eloService = {
     // Brief mode: random pairs from tasks without deadline
     getPairs: async (userId: bigint, count: number): Promise<Array<[TaskModel, TaskModel]>> => {
         const tasks = await taskRepository.findCandidatesForBrief(userId);
-        logger.debug({ userId: userId.toString(), candidates: tasks.length, requested: count }, "elo: getPairs");
+        logger.debug({ userId: userId.toString(), candidates: tasks.length, requested: count }, ELO_SERVICE_LOG.GET_PAIRS);
         if (tasks.length < 2) {
-            logger.warn({ userId: userId.toString() }, "elo: not enough candidates for brief pairs");
+            logger.warn({ userId: userId.toString() }, ELO_SERVICE_LOG.NOT_ENOUGH_CANDIDATES);
             return [];
         }
         const shuffled = [...tasks].sort(() => Math.random() - 0.5);
@@ -41,7 +42,7 @@ export const eloService = {
         if (tasks.length < 2) return null;
         const totalRounds = swissTotalRounds(tasks.length);
         const pairs = buildSwissRound(tasks);
-        logger.info({ userId: userId.toString(), tasks: tasks.length, pairs: pairs.length, totalRounds }, "elo: swiss session built");
+        logger.info({ userId: userId.toString(), tasks: tasks.length, pairs: pairs.length, totalRounds }, ELO_SERVICE_LOG.SESSION_BUILT);
         return { taskIds: tasks.map(t => t.id), pairs, round: 1, totalRounds };
     },
 
@@ -67,7 +68,7 @@ export const eloService = {
             taskRepository.findById(loserId),
         ]);
         if (!winner || !loser) {
-            logger.warn({ winnerId, loserId }, "elo: applyResult — task not found, skipping");
+            logger.warn({ winnerId, loserId }, ELO_SERVICE_LOG.APPLY_RESULT_SKIP);
             return;
         }
 
@@ -76,6 +77,6 @@ export const eloService = {
             taskRepository.update(winnerId, { elo_score: newA }),
             taskRepository.update(loserId, { elo_score: newB }),
         ]);
-        logger.info({ winnerId, loserId, newWinnerScore: newA, newLoserScore: newB }, "elo scores updated");
+        logger.info({ winnerId, loserId, newWinnerScore: newA, newLoserScore: newB }, ELO_SERVICE_LOG.SCORES_UPDATED);
     },
 };

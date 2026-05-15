@@ -38,6 +38,7 @@ export interface CaptureDraft {
     delegated_to?: string;
     attachment_file_id?: string;
     attachment_type?: string;
+    isInboxEdit?: boolean;
 }
 
 export interface MorningBriefDraft {

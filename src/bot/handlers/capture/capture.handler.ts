@@ -7,6 +7,7 @@ import { isValidTime, parseDateString, formatDate, formatTimeUTCHHmm, resolveDat
 import { pushScene, popScene, clearHistory } from "#root/bot/utils/scene.js";
 import { sendMainMenu } from "#root/bot/handlers/menu/menu.js";
 import { sendTaskMessage, buildTaskTags } from "#root/bot/handlers/task-message/task-message.js";
+import { TASK_MESSAGE_FORMATS } from "#root/bot/handlers/task-message/const.js";
 import { Category, DurationTag } from "#root/types/enums.js";
 import { TaskModel } from "#root/types/models.js";
 import {
@@ -15,6 +16,10 @@ import {
     CAPTURE_SCENES,
     CAPTURE_CALLBACKS,
     CAPTURE_PATTERNS,
+    CAPTURE_TAG_FORMATS,
+    CAPTURE_ICONS,
+    CAPTURE_LOG,
+    CAPTURE_DEFAULTS,
     GLOBAL_CALLBACKS,
     INBOX_CALLBACKS,
     INBOX_PATTERNS,
@@ -32,6 +37,7 @@ import {
     CAPTURE_TIMEOUT_MS,
 } from "./const.js";
 import { DURATION_LABELS, CATEGORY_LABELS } from "#root/types/labels.js";
+import { TASK_CATEGORY } from "#root/repositories/const.js";
 
 
 
@@ -55,14 +61,14 @@ const backButton = (): InlineKeyboard => new InlineKeyboard().text(CAPTURE_BUTTO
 
 const buildOptionsKeyboard = (draft: CaptureDraft): InlineKeyboard => {
     const dateLabel = draft.due_date
-        ? `📅 ${formatIsoDateShort(draft.due_date)}`
+        ? `${CAPTURE_ICONS.DATE} ${formatIsoDateShort(draft.due_date)}`
         : CAPTURE_BUTTONS.DATE_PLACEHOLDER;
-    const timeLabel = draft.due_time ? `⏰ ${draft.due_time}` : CAPTURE_BUTTONS.TIME_PLACEHOLDER;
-    const delegateLabel = draft.delegated_to ? `👤 ${draft.delegated_to}` : CAPTURE_BUTTONS.DELEGATE_PLACEHOLDER;
-    const categoryLabel = draft.category === "CAREER"
-        ? CATEGORY_LABELS["CAREER"]
-        : draft.category === "PERSONAL"
-            ? CATEGORY_LABELS["PERSONAL"]
+    const timeLabel = draft.due_time ? `${CAPTURE_ICONS.TIME} ${draft.due_time}` : CAPTURE_BUTTONS.TIME_PLACEHOLDER;
+    const delegateLabel = draft.delegated_to ? `${CAPTURE_ICONS.DELEGATE} ${draft.delegated_to}` : CAPTURE_BUTTONS.DELEGATE_PLACEHOLDER;
+    const categoryLabel = draft.category === TASK_CATEGORY.CAREER
+        ? CATEGORY_LABELS[TASK_CATEGORY.CAREER]
+        : draft.category === TASK_CATEGORY.PERSONAL
+            ? CATEGORY_LABELS[TASK_CATEGORY.PERSONAL]
             : CAPTURE_BUTTONS.CATEGORY_PLACEHOLDER;
 
     return new InlineKeyboard()
@@ -114,21 +120,60 @@ const sendDurationStep = async (ctx: BotContext) => {
     await ctx.reply(CAPTURE_TEXTS.DURATION_PROMPT, { reply_markup: keyboard });
 };
 
-const sendOptionsStep = async (ctx: BotContext) => {
-    pushScene(ctx, CAPTURE_SCENES.AWAITING_OPTIONS);
-    const keyboard = buildOptionsKeyboard(ctx.session.capture ?? {});
-    await ctx.reply(CAPTURE_TEXTS.OPTIONS_PROMPT, { reply_markup: keyboard });
+const isInboxEdit = (ctx: BotContext): boolean => !!ctx.session.capture?.isInboxEdit;
+
+const editOrReply = async (
+    ctx: BotContext,
+    text: string,
+    options: { reply_markup?: InlineKeyboard; parse_mode?: string } = {},
+): Promise<void> => {
+    if (isInboxEdit(ctx) && ctx.callbackQuery?.message) {
+        await ctx.editMessageText(text, options as Parameters<typeof ctx.editMessageText>[1]);
+    } else {
+        await ctx.reply(text, options as Parameters<typeof ctx.reply>[1]);
+    }
 };
 
-const sendConfirmation = async (ctx: BotContext) => {
+const sendOptionsStep = async (ctx: BotContext) => {
+    pushScene(ctx, CAPTURE_SCENES.AWAITING_OPTIONS);
     const draft = ctx.session.capture ?? {};
-    const tags: string[] = [];
+    const keyboard = buildOptionsKeyboard(draft);
+    const text = draft.isInboxEdit && draft.title ? `✏️ ${draft.title}` : CAPTURE_TEXTS.OPTIONS_PROMPT;
+    await editOrReply(ctx, text, { reply_markup: keyboard });
+};
 
+const sendConfirmation = async (ctx: BotContext, savedTaskId?: string) => {
+    const draft = ctx.session.capture ?? {};
+
+    ctx.session.scene = null;
+    ctx.session.capture = undefined;
+    clearHistory(ctx);
+
+    if (savedTaskId && ctx.callbackQuery?.message) {
+        const task = await captureService.getTaskById(savedTaskId);
+        if (task) {
+            const caption = `${CAPTURE_TEXTS.CONFIRMED}\n\n${TASK_MESSAGE_FORMATS.CAPTION(task.title, buildTaskTags(task))}`;
+            const keyboard = new InlineKeyboard()
+                .text(CAPTURE_BUTTONS.TASK_DONE, CAPTURE_CALLBACKS.INBOX_DONE(savedTaskId))
+                .text(CAPTURE_BUTTONS.TASK_EDIT, CAPTURE_CALLBACKS.INBOX_EDIT(savedTaskId))
+                .row()
+                .text(CAPTURE_BUTTONS.TASK_DELETE, CAPTURE_CALLBACKS.INBOX_DELETE(savedTaskId));
+            const msg = ctx.callbackQuery.message;
+            if (MEDIA_TYPES.PHOTO in msg || MEDIA_TYPES.VIDEO in msg || MEDIA_TYPES.DOCUMENT in msg || MEDIA_TYPES.AUDIO in msg || MEDIA_TYPES.VOICE in msg) {
+                await ctx.editMessageCaption({ caption, reply_markup: keyboard, parse_mode: PARSE_MODE.HTML });
+            } else {
+                await ctx.editMessageText(caption, { reply_markup: keyboard, parse_mode: PARSE_MODE.HTML });
+            }
+            return;
+        }
+    }
+
+    const tags: string[] = [];
     if (draft.category) tags.push(CATEGORY_LABELS[draft.category]);
     if (draft.duration_tag) tags.push(DURATION_LABELS[draft.duration_tag]);
-    if (draft.due_date) tags.push(`📅 ${draft.due_date}`);
-    if (draft.due_time) tags.push(`⏰ ${draft.due_time}`);
-    if (draft.delegated_to) tags.push(`👤 ${draft.delegated_to}`);
+    if (draft.due_date) tags.push(CAPTURE_TAG_FORMATS.DATE(draft.due_date));
+    if (draft.due_time) tags.push(CAPTURE_TAG_FORMATS.TIME(draft.due_time));
+    if (draft.delegated_to) tags.push(CAPTURE_TAG_FORMATS.DELEGATE(draft.delegated_to));
 
     const keyboard = new InlineKeyboard()
         .text(CAPTURE_TEXTS.ADD_MORE, CAPTURE_CALLBACKS.ADD_MORE)
@@ -138,10 +183,6 @@ const sendConfirmation = async (ctx: BotContext) => {
         `${CAPTURE_TEXTS.CONFIRMED}\n\n<b>${draft.title}</b>\n<i>${tags.join(" ")}</i>`,
         { reply_markup: keyboard, parse_mode: PARSE_MODE.HTML },
     );
-
-    ctx.session.scene = null;
-    ctx.session.capture = undefined;
-    clearHistory(ctx);
 };
 
 const buildDueTime = (date: string | undefined, time: string | undefined, timezoneOffsetHours: number): Date | null => {
@@ -149,13 +190,14 @@ const buildDueTime = (date: string | undefined, time: string | undefined, timezo
     const dateStr = date ?? formatDate(new Date());
     const utcMs = new Date(`${dateStr}T${time}:00Z`).getTime() - timezoneOffsetHours * 3600000;
     return new Date(utcMs);
+    // не используется утилита для времени
 };
 
 const saveTask = async (ctx: BotContext) => {
     const draft = ctx.session.capture!;
     const userId = BigInt(ctx.from!.id);
     const user = await settingsService.findUser(userId);
-    const tzOffset = parseTimezoneOffset(user?.timezone ?? "UTC+3");
+    const tzOffset = parseTimezoneOffset(user?.timezone ?? CAPTURE_DEFAULTS.TIMEZONE);
 
     if (draft.taskId) {
         await captureService.updateTask(draft.taskId, {
@@ -166,6 +208,7 @@ const saveTask = async (ctx: BotContext) => {
             attachment_file_id: draft.attachment_file_id ?? null,
             attachment_type: draft.attachment_type ?? null,
         });
+        await sendConfirmation(ctx, draft.taskId);
     } else {
         await captureService.createTask({
             userId,
@@ -178,9 +221,8 @@ const saveTask = async (ctx: BotContext) => {
             attachment_file_id: draft.attachment_file_id ?? null,
             attachment_type: draft.attachment_type ?? null,
         });
+        await sendConfirmation(ctx);
     }
-
-    await sendConfirmation(ctx);
 };
 
 const buildInboxMenuKeyboard = (): InlineKeyboard =>
@@ -188,25 +230,33 @@ const buildInboxMenuKeyboard = (): InlineKeyboard =>
         .text(INBOX_BUTTONS.TODAY, INBOX_CALLBACKS.SHOW_TODAY).row()
         .text(INBOX_BUTTONS.WEEK, INBOX_CALLBACKS.SHOW_WEEK).row()
         .text(INBOX_BUTTONS.NO_DATE, INBOX_CALLBACKS.SHOW_NO_DATE).row()
-        .text(INBOX_BUTTONS.ALL, INBOX_CALLBACKS.SHOW_ALL);
+        .text(INBOX_BUTTONS.ALL, INBOX_CALLBACKS.SHOW_ALL).row()
+        .text(INBOX_BUTTONS.BACK_TO_MENU, GLOBAL_CALLBACKS.MENU_HOME);
 
 const sendInboxMenu = async (ctx: BotContext): Promise<void> => {
-    await ctx.reply(INBOX_TEXTS.MENU_PROMPT, { reply_markup: buildInboxMenuKeyboard() });
+    const keyboard = buildInboxMenuKeyboard();
+    if (ctx.callbackQuery) {
+        await ctx.editMessageText(INBOX_TEXTS.MENU_PROMPT, { reply_markup: keyboard });
+    } else {
+        await ctx.reply(INBOX_TEXTS.MENU_PROMPT, { reply_markup: keyboard });
+    }
 };
+
+const backToInboxKeyboard = (): InlineKeyboard =>
+    new InlineKeyboard().text(INBOX_BUTTONS.BACK_TO_INBOX, CAPTURE_CALLBACKS.INBOX);
 
 const sendTaskList = async (
     ctx: BotContext,
     userId: bigint,
     tasks: TaskModel[],
     footer: string,
+    emptyText: string,
 ): Promise<void> => {
     if (tasks.length === 0) {
-        await ctx.reply(footer, {
-            reply_markup: new InlineKeyboard().text(INBOX_BUTTONS.BACK_TO_INBOX, CAPTURE_CALLBACKS.INBOX),
-        });
+        await ctx.editMessageText(emptyText, { reply_markup: backToInboxKeyboard() });
         return;
     }
-    await ctx.reply(CAPTURE_TEXTS.INBOX_HEADER(tasks.length));
+    await ctx.editMessageText(CAPTURE_TEXTS.INBOX_HEADER(tasks.length), { reply_markup: backToInboxKeyboard() });
     for (const task of tasks) {
         const keyboard = new InlineKeyboard()
             .text(CAPTURE_BUTTONS.TASK_DONE, CAPTURE_CALLBACKS.INBOX_DONE(task.id))
@@ -215,23 +265,19 @@ const sendTaskList = async (
             .text(CAPTURE_BUTTONS.TASK_DELETE, CAPTURE_CALLBACKS.INBOX_DELETE(task.id));
         await sendTaskMessage(ctx.api, Number(userId), task, keyboard);
     }
-    await ctx.reply(footer, {
-        reply_markup: new InlineKeyboard().text(INBOX_BUTTONS.BACK_TO_INBOX, CAPTURE_CALLBACKS.INBOX),
-    });
 };
 
 const sendInboxForDate = async (ctx: BotContext, date: Date, userId: bigint): Promise<void> => {
     const tasks = await captureService.getTasksByDate(userId, date);
     await sendTaskList(ctx, userId, tasks,
-        tasks.length === 0
-            ? INBOX_TEXTS.NO_TASKS_DATE(formatDayLabel(date))
-            : INBOX_TEXTS.FOOTER_DATE(formatDayLabel(date)),
+        INBOX_TEXTS.FOOTER_DATE(formatDayLabel(date)),
+        INBOX_TEXTS.NO_TASKS_DATE(formatDayLabel(date)),
     );
 };
 
 export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.command("add", async (ctx) => {
-        logger.debug({ userId: ctx.from!.id }, "command /add");
+        logger.debug({ userId: ctx.from!.id }, CAPTURE_LOG.CMD_ADD);
         ctx.session.scene = null;
         ctx.session.capture = {};
         ctx.session.captureStartedAt = Date.now();
@@ -243,7 +289,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     });
 
     bot.command("inbox", async (ctx) => {
-        logger.debug({ userId: ctx.from!.id }, "command /inbox");
+        logger.debug({ userId: ctx.from!.id }, CAPTURE_LOG.CMD_INBOX);
         await sendInboxMenu(ctx);
     });
 
@@ -265,14 +311,14 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
 
     bot.callbackQuery(CAPTURE_CALLBACKS.INBOX, async (ctx) => {
         await ctx.answerCallbackQuery();
-        logger.debug({ userId: ctx.from.id }, "inbox: open menu");
+        logger.debug({ userId: ctx.from.id }, CAPTURE_LOG.INBOX_OPEN_MENU);
         await sendInboxMenu(ctx);
     });
 
     bot.callbackQuery(INBOX_CALLBACKS.SHOW_TODAY, async (ctx) => {
         await ctx.answerCallbackQuery();
         const userId = BigInt(ctx.from.id);
-        logger.debug({ userId: ctx.from.id }, "inbox: show today");
+        logger.debug({ userId: ctx.from.id }, CAPTURE_LOG.INBOX_SHOW_TODAY);
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
         await sendInboxForDate(ctx, today, userId);
@@ -281,38 +327,32 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(INBOX_CALLBACKS.SHOW_WEEK, async (ctx) => {
         await ctx.answerCallbackQuery();
         const userId = BigInt(ctx.from.id);
-        logger.debug({ userId: ctx.from.id }, "inbox: show week");
+        logger.debug({ userId: ctx.from.id }, CAPTURE_LOG.INBOX_SHOW_WEEK);
         const { weekStart, weekEnd } = getWeekBounds();
         const tasks = await captureService.getWeekTasks(userId, weekStart, weekEnd);
-        await sendTaskList(ctx, userId, tasks,
-            tasks.length === 0 ? INBOX_TEXTS.NO_TASKS_WEEK : INBOX_TEXTS.FOOTER_WEEK,
-        );
+        await sendTaskList(ctx, userId, tasks, INBOX_TEXTS.FOOTER_WEEK, INBOX_TEXTS.NO_TASKS_WEEK);
     });
 
     bot.callbackQuery(INBOX_CALLBACKS.SHOW_NO_DATE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const userId = BigInt(ctx.from.id);
-        logger.debug({ userId: ctx.from.id }, "inbox: show no-date tasks");
+        logger.debug({ userId: ctx.from.id }, CAPTURE_LOG.INBOX_SHOW_NO_DATE);
         const tasks = await captureService.getNoDateTasks(userId);
-        await sendTaskList(ctx, userId, tasks,
-            tasks.length === 0 ? INBOX_TEXTS.NO_TASKS_NO_DATE : INBOX_TEXTS.FOOTER_NO_DATE,
-        );
+        await sendTaskList(ctx, userId, tasks, INBOX_TEXTS.FOOTER_NO_DATE, INBOX_TEXTS.NO_TASKS_NO_DATE);
     });
 
     bot.callbackQuery(INBOX_CALLBACKS.SHOW_ALL, async (ctx) => {
         await ctx.answerCallbackQuery();
         const userId = BigInt(ctx.from.id);
-        logger.debug({ userId: ctx.from.id }, "inbox: show all tasks");
+        logger.debug({ userId: ctx.from.id }, CAPTURE_LOG.INBOX_SHOW_ALL);
         const tasks = await captureService.getActiveTasks(userId);
-        await sendTaskList(ctx, userId, tasks,
-            tasks.length === 0 ? INBOX_TEXTS.NO_TASKS_ALL : INBOX_TEXTS.FOOTER_ALL,
-        );
+        await sendTaskList(ctx, userId, tasks, INBOX_TEXTS.FOOTER_ALL, INBOX_TEXTS.NO_TASKS_ALL);
     });
 
     bot.callbackQuery(INBOX_PATTERNS.DATE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const iso = ctx.match[1];
-        logger.debug({ userId: ctx.from.id, date: iso }, "inbox: filter by date");
+        logger.debug({ userId: ctx.from.id, date: iso }, CAPTURE_LOG.INBOX_FILTER_DATE);
         const date = new Date(iso);
         await sendInboxForDate(ctx, date, BigInt(ctx.from.id));
     });
@@ -320,7 +360,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(CAPTURE_PATTERNS.INBOX_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        logger.info({ userId: ctx.from.id, taskId }, "inbox: task done");
+        logger.info({ userId: ctx.from.id, taskId }, CAPTURE_LOG.INBOX_TASK_DONE);
         const task = await captureService.markTaskDone(taskId);
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
@@ -349,6 +389,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
             delegated_to: task.delegated_to ?? undefined,
             attachment_file_id: task.attachment_file_id ?? undefined,
             attachment_type: task.attachment_type ?? undefined,
+            isInboxEdit: true,
         };
         clearHistory(ctx);
         await sendOptionsStep(ctx);
@@ -357,7 +398,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(CAPTURE_PATTERNS.INBOX_DELETE, async (ctx) => {
         await ctx.answerCallbackQuery();
         const taskId = ctx.match[1];
-        logger.info({ userId: ctx.from.id, taskId }, "inbox: task deleted");
+        logger.info({ userId: ctx.from.id, taskId }, CAPTURE_LOG.INBOX_TASK_DELETED);
         await captureService.markTaskDeleted(taskId);
         const msg = ctx.callbackQuery.message;
         const emptyKeyboard = new InlineKeyboard();
@@ -420,27 +461,25 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
     bot.callbackQuery(CAPTURE_CALLBACKS.OPTION_DATE, async (ctx) => {
         await ctx.answerCallbackQuery();
         pushScene(ctx, CAPTURE_SCENES.AWAITING_DATE);
-        await ctx.reply(CAPTURE_TEXTS.DATE_PROMPT, {
-            reply_markup: buildDateKeyboard(),
-        });
+        await editOrReply(ctx, CAPTURE_TEXTS.DATE_PROMPT, { reply_markup: buildDateKeyboard() });
     });
 
     bot.callbackQuery(CAPTURE_CALLBACKS.OPTION_TIME, async (ctx) => {
         await ctx.answerCallbackQuery();
         pushScene(ctx, CAPTURE_SCENES.AWAITING_TIME);
-        await ctx.reply(CAPTURE_TEXTS.TIME_PROMPT, { reply_markup: backButton() });
+        await editOrReply(ctx, CAPTURE_TEXTS.TIME_PROMPT, { reply_markup: backButton() });
     });
 
     bot.callbackQuery(CAPTURE_CALLBACKS.OPTION_DELEGATE, async (ctx) => {
         await ctx.answerCallbackQuery();
         pushScene(ctx, CAPTURE_SCENES.AWAITING_DELEGATE);
-        await ctx.reply(CAPTURE_TEXTS.DELEGATE_PROMPT, { reply_markup: backButton() });
+        await editOrReply(ctx, CAPTURE_TEXTS.DELEGATE_PROMPT, { reply_markup: backButton() });
     });
 
     bot.callbackQuery(CAPTURE_CALLBACKS.OPTION_DONE, async (ctx) => {
         await ctx.answerCallbackQuery();
         if (await resetExpiredCapture(ctx)) return;
-        logger.info({ userId: ctx.from.id }, "capture: task saved");
+        logger.info({ userId: ctx.from.id }, CAPTURE_LOG.TASK_SAVED);
         await saveTask(ctx);
     });
 
@@ -452,7 +491,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
             keyboard.text(label, CAPTURE_CALLBACKS.OPTION_CATEGORY_VALUE(value)),
         );
         keyboard.row().text(CAPTURE_BUTTONS.BACK, CAPTURE_CALLBACKS.BACK);
-        await ctx.reply(CAPTURE_TEXTS.CATEGORY_PROMPT, { reply_markup: keyboard });
+        await editOrReply(ctx, CAPTURE_TEXTS.CATEGORY_PROMPT, { reply_markup: keyboard });
     });
 
     bot.callbackQuery(CAPTURE_PATTERNS.OPTION_CATEGORY, async (ctx) => {
@@ -467,7 +506,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
         await ctx.answerCallbackQuery();
         pushScene(ctx, CAPTURE_SCENES.EDIT_TITLE);
         const current = ctx.session.capture?.title ?? "";
-        await ctx.reply(CAPTURE_TEXTS.TITLE_EDIT_PROMPT(current), { reply_markup: backButton() });
+        await editOrReply(ctx, CAPTURE_TEXTS.TITLE_EDIT_PROMPT(current), { reply_markup: backButton() });
     });
 
     bot.callbackQuery(CAPTURE_PATTERNS.DATE, async (ctx) => {
@@ -476,7 +515,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
         const value = ctx.match[1];
 
         if (value === DATE_PRESETS.CUSTOM.value) {
-            await ctx.reply(CAPTURE_TEXTS.DATE_PROMPT, { reply_markup: backButton() });
+            await editOrReply(ctx, CAPTURE_TEXTS.DATE_PROMPT, { reply_markup: backButton() });
             return;
         }
 
@@ -498,7 +537,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
             await saveTask(ctx);
         } else {
             pushScene(ctx, CAPTURE_SCENES.AWAITING_TIME);
-            await ctx.reply(CAPTURE_TEXTS.TIME_PROMPT, { reply_markup: backButton() });
+            await editOrReply(ctx, CAPTURE_TEXTS.TIME_PROMPT, { reply_markup: backButton() });
         }
     });
 
@@ -517,7 +556,7 @@ export const registerCaptureHandler = (bot: Bot<BotContext>) => {
             }
 
             if (title.length > TITLE_MAX_LENGTH) {
-                logger.warn({ userId: ctx.from.id, length: title.length }, "capture: title too long");
+                logger.warn({ userId: ctx.from.id, length: title.length }, CAPTURE_LOG.TITLE_TOO_LONG);
                 await ctx.reply(CAPTURE_TEXTS.TITLE_TOO_LONG);
                 return;
             }

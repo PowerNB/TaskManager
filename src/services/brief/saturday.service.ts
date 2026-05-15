@@ -2,6 +2,7 @@ import { userRepository } from "#root/repositories/user.repository.js";
 import { taskRepository } from "#root/repositories/task.repository.js";
 import { TaskModel, UserModel } from "#root/types/models.js";
 import { logger } from "#root/logger.js";
+import { SATURDAY_SERVICE_LOG } from "../const.js";
 
 export type SaturdayBriefType = "regular" | "monthly" | "quarterly";
 
@@ -99,7 +100,7 @@ export const saturdayBriefService = {
             ? await taskRepository.findArchivedBeforeQuarter(userId, getStartOfQuarter())
             : [];
 
-        logger.debug({ userId: String(userId), type }, "saturday brief data built");
+        logger.debug({ userId: String(userId), type }, SATURDAY_SERVICE_LOG.BRIEF_DATA_BUILT);
         return {
             user,
             type,
@@ -112,16 +113,16 @@ export const saturdayBriefService = {
 
     freezeStaleTask: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "FROZEN", frozen_at: new Date() });
-        logger.info({ taskId }, "task frozen");
+        logger.info({ taskId }, SATURDAY_SERVICE_LOG.TASK_FROZEN);
     },
 
     archiveFrozenTask: async (taskId: string): Promise<void> => {
         await taskRepository.update(taskId, { status: "ARCHIVED", archived_at: new Date() });
-        logger.info({ taskId }, "task archived");
+        logger.info({ taskId }, SATURDAY_SERVICE_LOG.TASK_ARCHIVED);
     },
 
     deleteArchivedTasks: async (ids: string[]): Promise<void> => {
         await taskRepository.deleteMany(ids);
-        logger.info({ count: ids.length }, "archived tasks deleted");
+        logger.info({ count: ids.length }, SATURDAY_SERVICE_LOG.ARCHIVED_DELETED);
     },
 };
